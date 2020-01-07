@@ -149,7 +149,7 @@ def handleHttp(request):
     req = WebhookRequest()
     res = WebhookResponse()
     json_format.Parse(request.data, req)
-    if req.query_result.action = "roll":
+    if req.query_result.action == "roll":
         handleRoll(req, res)
 
     return json_format.MessageToJson(res)
