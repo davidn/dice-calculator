@@ -127,5 +127,8 @@ def handleHttp(request):
                      "simpleResponse": {
                          "textToSpeech": res.fulfillment_text
                      }
-     }}]}}
+                }
+            ]
+        }
+    }
     return json_format.MessageToJson(res)
