@@ -74,6 +74,7 @@ mul: mul _TIMES value
 class EvalDice(Transformer):
   
   def __init__(self):
+    super().__init__(visit_tokens=True)
     self.dice_results = []
     
   INT=int
@@ -108,7 +109,7 @@ class EvalDice(Transformer):
 def roll(dice_spec):
     l = Lark(GRAMMER)
     tree =  l.parse(dice_spec)
-    transfomer = EvalDice(visit_tokens=True)
+    transfomer = EvalDice()
     logging.debug("Parse tree: %r", tree)
     transformed_tree = transformer.transform(tree)
     return (transformed_tree.children[0], transformer.dice_results)
