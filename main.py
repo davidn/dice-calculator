@@ -72,6 +72,10 @@ mul: mul _TIMES value
 
 @v_args(inline=True)
 class EvalDice(Transformer):
+  
+  def __init__(self):
+    self.dice_results = []
+    
   INT=int
 
   def value(self, x):
@@ -81,6 +85,7 @@ class EvalDice(Transformer):
 
   def roll_one(self, sides):
     res = randint(1,sides)
+    self.dice_results.append(res)
     logging.debug("Rolled d%d, got %d", sides, res)
     return res
 
@@ -103,32 +108,43 @@ class EvalDice(Transformer):
 def roll(dice_spec):
     l = Lark(GRAMMER)
     tree =  l.parse(dice_spec)
+    transfomer = EvalDice(visit_tokens=True)
     logging.debug("Parse tree: %r", tree)
-    transformed_tree = EvalDice(visit_tokens=True).transform(tree)
-    return transformed_tree.children[0]
+    transformed_tree = transformer.transform(tree)
+    return (transformed_tree.children[0], transformer.dice_results)
 
-
-def handleHttp(request):
-    req = WebhookRequest()
-    json_format.Parse(request.data, req)
+def handleRoll(req, res):
     dice_spec = req.query_result.parameters["dice_spec"]
-    
     logging.info("Requested roll: %s", dice_spec)
-    roll_result = roll(dice_spec)
+    roll_result, dice_results = roll(dice_spec)
     logging.info("Final result: %s", roll_result)
-    
-    res = WebhookResponse()
-    res.fulfillment_text = f"You rolled {roll_result}"
+    res.fulfillment_text = "Result {dice_results} for a total of {roll_result}".format(
+        roll_result=roll_result,
+        dice_results=", ".join(dice_results)
+    )
+    context = res.output_contexts.add()
+    context.name = req.session + "/contexts/roll-followup"
+    context.lifespan = 2
+    context.parameters["dice_results"] = dice_results
     res.payload["google"] = {
         "expectUserResponse": False,
         "richResponse": {
             "items": [
                 {
                      "simpleResponse": {
-                         "textToSpeech": res.fulfillment_text
+                         "textToSpeech": f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>",
+                         "displayText": res.fulfillment_text
                      }
                 }
             ]
         }
     }
+
+def handleHttp(request):
+    req = WebhookRequest()
+    res = WebhookResponse()
+    json_format.Parse(request.data, req)
+    if req.query_result.action = "roll":
+        handleRoll(req, res)
+
     return json_format.MessageToJson(res)
