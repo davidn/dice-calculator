@@ -136,6 +136,11 @@ def handleRoll(req, res):
                          "displayText": res.fulfillment_text
                      }
                 }
+            ],
+            "suggestions": [
+              {
+                  "title": "Re-roll"
+              }
             ]
         }
     }
