@@ -121,7 +121,7 @@ def handleHttp(request):
     res.fulfillment_text = f"You rolled {roll_result}"
     res.payload = {
         "google": {
-            "expectUserResponse": false,
+            "expectUserResponse": False,
             "richResponse": {
                 "items": [
                     {
