@@ -125,7 +125,7 @@ def handleRoll(req, res):
     )
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
-    context.lifespan = 2
+    context.lifespan_count = 2
     context.parameters["dice_results"] = dice_results
     res.payload["google"] = {
         "expectUserResponse": False,
