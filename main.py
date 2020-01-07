@@ -121,7 +121,7 @@ def handleRoll(req, res):
     logging.info("Final result: %s", roll_result)
     res.fulfillment_text = "Result {dice_results} for a total of {roll_result}".format(
         roll_result=roll_result,
-        dice_results=", ".join(dice_results)
+        dice_results=", ".join(str(d) for d in dice_results)
     )
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
