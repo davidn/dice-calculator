@@ -28,11 +28,11 @@ start:  value
 %import common.INT
 %ignore " "
 
-_PLUS: "+"
+_PLUS: "+"i
     | "plus"i
-_MINUS: "-"
-      | "minus"
-_TIMES: "*"
+_MINUS: "-"i
+      | "minus"i
+_TIMES: "*"i
       | "times"i
       | "multiplied by"i
       | "multiplied with"i
@@ -58,7 +58,7 @@ dice: die -> roll_one
     | value die -> roll_n
 
 value: dice
-     | "(" value ")"
+     | "("i value ")"i
      | INT
      | sum
 
