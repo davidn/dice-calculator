@@ -119,4 +119,13 @@ def handleHttp(request):
     
     res = WebhookResponse()
     res.fulfillment_text = f"You rolled {roll_result}"
+    res.payload = {
+        "google": {
+            "expectUserResponse": false,
+            "richResponse": {
+                "items": [
+                    {
+                        "simpleResponse": {
+                            "textToSpeech": res.fulfillment_text
+     }}]}}}
     return json_format.MessageToJson(res)
