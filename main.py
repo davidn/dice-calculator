@@ -140,8 +140,8 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
         f"You rolled a total of {roll_result}{dice_description}"
     )
     sr = res.fulfillment_messages.add().simple_responses.simple_responses.add()
-    sr.ssml = f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>"
-    sr.display_text = res.fulfillment_text
+    sr.ssml = f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled a total of {roll_result}</speak>"
+    sr.display_text = f"You rolled a total of {roll_result}{dice_description}"
     res.fulfillment_messages.add().suggestions.suggestions.add().title = "Re-roll"
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
