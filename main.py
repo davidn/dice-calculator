@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
 from google.protobuf import json_format
 from lark import Lark, Transformer, v_args
