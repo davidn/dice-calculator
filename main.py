@@ -6,6 +6,10 @@ from lark import Lark, Transformer, v_args
 import logging
 from random import randint
 import sys
+from typing import Sequence, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import flask
 
 NAMED_DICE = {
         "coin": 2,
@@ -108,7 +112,7 @@ class EvalDice(Transformer):
         return a*b
 
 
-def roll(dice_spec):
+def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     parser = Lark(GRAMMER)
     tree = parser.parse(dice_spec)
     transformer = EvalDice()
@@ -117,7 +121,7 @@ def roll(dice_spec):
     return (transformed_tree.children[0], transformer.dice_results)
 
 
-def describe_dice(dice_results):
+def describe_dice(dice_results: Sequence[int]) -> str:
     if len(dice_results) <= 1:
         return ""
     description = " from "
@@ -126,39 +130,27 @@ def describe_dice(dice_results):
     return description
 
 
-def handleRoll(req, res):
+def handleRoll(req: WebhookRequest, res: WebhookResponse):
     dice_spec = req.query_result.parameters["dice_spec"]
     logging.info("Requested roll: %s", dice_spec)
     roll_result, dice_results = roll(dice_spec)
     logging.info("Final result: %s", roll_result)
     dice_description = describe_dice(dice_results)
-    res.fulfillment_text = f"You rolled a total of {roll_result}{dice_description}"
+    res.fulfillment_messages.add().text.text.append(
+        f"You rolled a total of {roll_result}{dice_description}"
+    )
+    sr = res.fulfillment_messages.add().simple_responses.simple_responses.add()
+    sr.ssml = f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>"
+    sr.display_text = res.fulfillment_text
+    res.fulfillment_messages.add().suggestions.suggestions.add().title = "Re-roll"
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
     context.lifespan_count = 2
     context.parameters["roll_result"] = roll_result
     context.parameters["dice_results"] = dice_results
-    res.payload["google"] = {
-        "expectUserResponse": False,
-        "richResponse": {
-            "items": [
-                {
-                    "simpleResponse": {
-                        "textToSpeech": f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>",
-                        "displayText": res.fulfillment_text
-                    }
-                }
-            ],
-            "suggestions": [
-                {
-                    "title": "Re-roll"
-                }
-            ]
-        }
-    }
 
 
-def handleHttp(request):
+def handleHttp(request: 'flask.Request') -> str:
     req = WebhookRequest()
     res = WebhookResponse()
     json_format.Parse(request.data, req)

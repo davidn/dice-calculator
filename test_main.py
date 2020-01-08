@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-from main import roll, describe_dice
+from main import roll, describe_dice, handleRoll
+
+from dialogflow_v2.types import WebhookRequest, WebhookResponse
 import unittest
+from unittest.mock import MagicMock
 
 
 class RollTest(unittest.TestCase):
@@ -21,6 +24,15 @@ class DescribeDiceTest(unittest.TestCase):
 
     def test_four_dice(self):
         self.assertIn("1, 2, 3 and 4", describe_dice([1, 2, 3, 4]))
+
+
+class TestHandleRoll(unittest.TestCase):
+    def test_dispatches(self):
+        req = WebhookRequest()
+        req.query_result.parameters["dice_spec"] = "1+1"
+        req.query_result.action = "roll"
+        res = WebhookResponse()
+        handleRoll(req, res)
 
 
 if __name__ == '__main__':
