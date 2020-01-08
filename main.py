@@ -114,15 +114,18 @@ def roll(dice_spec):
     transformed_tree = transformer.transform(tree)
     return (transformed_tree.children[0], transformer.dice_results)
 
+def describe_dice(dice_results):
+    if len(dice_results) <= 1:
+        return ""
+    return  " from " + ", ".join(str(d) for d in dice_results[:-1]) + " and " + str(dice_results[-1])
+
 def handleRoll(req, res):
     dice_spec = req.query_result.parameters["dice_spec"]
     logging.info("Requested roll: %s", dice_spec)
     roll_result, dice_results = roll(dice_spec)
     logging.info("Final result: %s", roll_result)
-    res.fulfillment_text = "Result {dice_results} for a total of {roll_result}".format(
-        roll_result=roll_result,
-        dice_results=", ".join(str(d) for d in dice_results)
-    )
+    dice_description = describe_dice(dice_results)
+    res.fulfillment_text = f"You rolled a total of {roll_result}{dice_description}"
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
     context.lifespan_count = 2
