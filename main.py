@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from dialogflow_v2.types import WebhookRequest, WebhookResponse
+from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 from lark import Lark, Transformer, v_args
 import logging
 from random import randint
 import sys
-from typing import Sequence, Tuple, TYPE_CHECKING
+from typing import Sequence, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import flask
@@ -130,19 +130,35 @@ def describe_dice(dice_results: Sequence[int]) -> str:
     return description
 
 
+def add_fulfillment_messages(res: WebhookResponse, display_text: Optional[str], ssml: Optional[str], suggestions: Sequence[str]):
+    res.fulfillment_messages.add().text.text.append(display_text)
+
+    if ssml:
+        fulfillment_message = res.fulfillment_messages.add()
+        fulfillment_message.platform = Intent.Message.ACTIONS_ON_GOOGLE
+        sr = fulfillment_message.simple_responses.simple_responses.add()
+        sr.ssml = ssml
+        sr.display_text = display_text
+
+    if suggestions:
+        fulfillment_message = res.fulfillment_messages.add()
+        fulfillment_message.platform = Intent.Message.ACTIONS_ON_GOOGLE
+        for suggestion in suggestions:
+            fulfillment_message.suggestions.suggestions.add().title = "Re-roll"
+
+
 def handleRoll(req: WebhookRequest, res: WebhookResponse):
     dice_spec = req.query_result.parameters["dice_spec"]
     logging.info("Requested roll: %s", dice_spec)
     roll_result, dice_results = roll(dice_spec)
     logging.info("Final result: %s", roll_result)
     dice_description = describe_dice(dice_results)
-    res.fulfillment_messages.add().text.text.append(
-        f"You rolled a total of {roll_result}{dice_description}"
+    add_fulfillment_messages(
+        res,
+        f"You rolled a total of {roll_result}{dice_description}",
+        f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled a total of {roll_result}</speak>",
+        ["Re-roll"]
     )
-    sr = res.fulfillment_messages.add().simple_responses.simple_responses.add()
-    sr.ssml = f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled a total of {roll_result}</speak>"
-    sr.display_text = f"You rolled a total of {roll_result}{dice_description}"
-    res.fulfillment_messages.add().suggestions.suggestions.add().title = "Re-roll"
     context = res.output_contexts.add()
     context.name = req.session + "/contexts/roll-followup"
     context.lifespan_count = 2
