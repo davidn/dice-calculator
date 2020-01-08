@@ -8,19 +8,19 @@ from random import randint
 import sys
 
 NAMED_DICE = {
-    "coin": 2,
-    "pyramid": 4,
-    "cube": 6,
-    "tetrahedron": 8,
-    "octahedron": 8,
-    "decahedron": 10,
-    "dodecahedron": 12,
-    "icosahedron": 20,
-    "saving throw": 20,
-    "skill check": 20,
-    "to hit": 20,
-    "percentile": 100,
-    "percent": 100
+        "coin": 2,
+        "pyramid": 4,
+        "cube": 6,
+        "tetrahedron": 8,
+        "octahedron": 8,
+        "decahedron": 10,
+        "dodecahedron": 12,
+        "icosahedron": 20,
+        "saving throw": 20,
+        "skill check": 20,
+        "to hit": 20,
+        "percentile": 100,
+        "percent": 100
 }
 
 
@@ -31,95 +31,100 @@ start:  value
 %ignore " "
 
 _PLUS: "+"i
-    | "plus"i
+        | "plus"i
 _MINUS: "-"i
-      | "minus"i
+            | "minus"i
 _TIMES: "*"i
-      | "times"i
-      | "multiplied by"i
-      | "multiplied with"i
+            | "times"i
+            | "multiplied by"i
+            | "multiplied with"i
 NAMED_DICE: "coin"i
-          | "pyramid"i
-          | "tetrahedron"i
-          | "octahedron"i
-          | "cube"i
-          | "decahedron"i
-          | "dodecahedron"i
-          | "icosahedron"i
-          | "to hit"i
-          | "saving throw"i
-          | "skill check"i
-          | "percentile"i
-          | "percent"i
+                    | "pyramid"i
+                    | "tetrahedron"i
+                    | "octahedron"i
+                    | "cube"i
+                    | "decahedron"i
+                    | "dodecahedron"i
+                    | "icosahedron"i
+                    | "to hit"i
+                    | "saving throw"i
+                    | "skill check"i
+                    | "percentile"i
+                    | "percent"i
 
 die: "d"i value
-    | value "sided"i ("dice"i|"die"i)
-    | NAMED_DICE
+        | value "sided"i ("dice"i|"die"i)
+        | NAMED_DICE
 
 dice: die -> roll_one
-    | value die -> roll_n
+        | value die -> roll_n
 
 value: dice
-     | "("i value ")"i
-     | INT
-     | sum
+         | "("i value ")"i
+         | INT
+         | sum
 
 sum: sum _PLUS mul -> add
-    | sum _MINUS mul -> sub
-    | mul -> value
+        | sum _MINUS mul -> sub
+        | mul -> value
 
 mul: mul _TIMES value
-   | value -> value
+     | value -> value
 '''
+
 
 @v_args(inline=True)
 class EvalDice(Transformer):
-  
-  def __init__(self):
-    super().__init__(visit_tokens=True)
-    self.dice_results = []
-    
-  INT=int
+    def __init__(self):
+        super().__init__(visit_tokens=True)
+        self.dice_results = []
 
-  def value(self, x):
-    return x
-  
-  die=value
+    INT = int
 
-  def roll_one(self, sides):
-    res = randint(1,sides)
-    self.dice_results.append(res)
-    logging.debug("Rolled d%d, got %d", sides, res)
-    return res
+    def value(self, x):
+        return x
 
-  def roll_n(self, count, sides):
-    return sum(self.roll_one(sides) for x in range(count))
+    die = value
 
-  def NAMED_DICE(self, name):
-    return NAMED_DICE[name]
+    def roll_one(self, sides):
+        res = randint(1, sides)
+        self.dice_results.append(res)
+        logging.debug("Rolled d%d, got %d", sides, res)
+        return res
 
-  def add(self, a, b):
-    return a+b
+    def roll_n(self, count, sides):
+        return sum(self.roll_one(sides) for x in range(count))
 
-  def sub(self, a, b):
-    return a-b
+    def NAMED_DICE(self, name):
+        return NAMED_DICE[name]
 
-  def mul(self, a, b):
-    return a*b
+    def add(self, a, b):
+        return a+b
+
+    def sub(self, a, b):
+        return a-b
+
+    def mul(self, a, b):
+        return a*b
 
 
 def roll(dice_spec):
-    l = Lark(GRAMMER)
-    tree =  l.parse(dice_spec)
+    parser = Lark(GRAMMER)
+    tree = parser.parse(dice_spec)
     transformer = EvalDice()
     logging.debug("Parse tree: %r", tree)
     transformed_tree = transformer.transform(tree)
     return (transformed_tree.children[0], transformer.dice_results)
 
+
 def describe_dice(dice_results):
     if len(dice_results) <= 1:
         return ""
-    return  " from " + ", ".join(str(d) for d in dice_results[:-1]) + " and " + str(dice_results[-1])
+    description = " from "
+    description += ", ".join(str(d) for d in dice_results[:-1])
+    description += " and " + str(dice_results[-1])
+    return description
+
 
 def handleRoll(req, res):
     dice_spec = req.query_result.parameters["dice_spec"]
@@ -138,19 +143,20 @@ def handleRoll(req, res):
         "richResponse": {
             "items": [
                 {
-                     "simpleResponse": {
-                         "textToSpeech": f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>",
-                         "displayText": res.fulfillment_text
-                     }
+                    "simpleResponse": {
+                        "textToSpeech": f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled {roll_result}</speak>",
+                        "displayText": res.fulfillment_text
+                    }
                 }
             ],
             "suggestions": [
-              {
-                  "title": "Re-roll"
-              }
+                {
+                    "title": "Re-roll"
+                }
             ]
         }
     }
+
 
 def handleHttp(request):
     req = WebhookRequest()
