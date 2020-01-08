@@ -6,14 +6,14 @@ import unittest
 
 class RollTest(unittest.TestCase):
     def test_arithmetic(self):
-        self.assertEqual(roll("1+1"), 2)
-        self.assertEqual(roll("1+2*3"), 7)
-        self.assertEqual(roll("(1+2)*3"), 9)
+        self.assertEqual(roll("1+1"), (2, []))
+        self.assertEqual(roll("1+2*3"), (7, []))
+        self.assertEqual(roll("(1+2)*3"), (9, []))
 
 
 class DescribeDiceTest(unittest.TestCase):
     def test_one_dice(self):
-        self.assetEmpty(describe_dice([1]), "")
+        self.assertEqual(describe_dice([1]), "")
         self.assertEqual(describe_dice([3]), "")
 
     def test_two_dice(self):

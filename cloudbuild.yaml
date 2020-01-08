@@ -1,3 +1,9 @@
 steps:
+- name: 'python'
+  args: ['pip3','install', '-r', 'requirements.txt', '--user']
+
+- name: 'python'
+  args: ['python3','-m', 'unittest']
+
 - name: 'gcr.io/cloud-builders/gcloud'
   args: ['functions', 'deploy', 'roll', '--trigger-http', '--runtime', 'python37', '--entry-point', 'handleHttp']
