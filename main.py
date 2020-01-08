@@ -153,7 +153,7 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 def handleHttp(request: 'flask.Request') -> str:
     req = WebhookRequest()
     res = WebhookResponse()
-    json_format.Parse(request.data, req)
+    json_format.Parse(request.data, req, ignore_unknown_fields=True)
     if req.query_result.action == "roll":
         handleRoll(req, res)
 
