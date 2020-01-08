@@ -5,7 +5,6 @@ from google.protobuf import json_format
 from lark import Lark, Transformer, v_args
 import logging
 from random import randint
-import sys
 from typing import Sequence, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
