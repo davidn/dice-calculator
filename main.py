@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
+import flask
 from google.protobuf import json_format
 from lark import Lark, Transformer, v_args
 import logging
 from random import randint
 from typing import Sequence, Tuple, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import flask
 
 NAMED_DICE = {
         "coin": 2,
