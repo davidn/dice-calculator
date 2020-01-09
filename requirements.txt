@@ -1,3 +1,4 @@
 dialogflow
 lark-parser
 flask
+pytype
