@@ -1,11 +1,11 @@
 steps:
-- name: 'python'
+- name: 'python:3.7'
   args: ['pip3','install', '-r', 'requirements-test.txt', '--user']
 
-- name: 'python'
+- name: 'python:3.7'
   args: ['python3','-m', 'unittest']
 
-- name: 'python'
+- name: 'python:3.7'
   args: ['./pytype_script.sh']
 
 - name: 'gcr.io/cloud-builders/gcloud'
