@@ -6,6 +6,12 @@ from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
 import unittest
 from lark import Tree, Token
+import sys
+
+
+# Lark has recursion issues
+if sys.getrecursionlimit() < 5000:
+    sys.setrecursionlimit(5000)
 
 
 class RollTest(absltest.TestCase):
@@ -19,7 +25,7 @@ class RollTest(absltest.TestCase):
 
     def test_spell(self):
         # repeat multiple times to ensure we don't just get lucky
-        for _ in range(30):
+        for _ in range(10):
             outcome, dice = roll("Magic Missile")
             self.assertBetween(outcome, 2, 5)
             self.assertLen(dice, 1)

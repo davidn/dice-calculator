@@ -91,14 +91,10 @@ _die: "d"i value
 spell: SPELL_NAME -> spell_default
      | SPELL_NAME "at level" INT
      | "level" INT SPELL_NAME -> spell_reversed
-
-SPELL_NAME: "Fireball"i
-          | "Magic Missile"i
 '''
 GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
-# GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
-
+GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
 
 @v_args(inline=True)
 class NumberTransformer(Transformer):
