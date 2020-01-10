@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
-from lark import Lark, Transformer, v_args
-import logging
+import json
+from lark import Lark, Transformer, v_args, Tree
 from random import randint
-from typing import Sequence, Tuple, Optional, TYPE_CHECKING
+from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import flask
@@ -27,6 +28,17 @@ NAMED_DICE = {
 }
 
 
+SPELLS = json.load(open("data/spells.json"))
+WEAPONS = json.load(open("data/weapons.json"))
+
+
+def list_to_lark_literal(literal_name: str, values: Iterable[str], case_sensitive=False) -> str:
+    case_marker = "" if case_sensitive else "i"
+    spec = f"\n{literal_name}:"
+    spec += ("\n|").join(f"\"{v}\"{case_marker}" for v in values)
+    return spec
+
+
 GRAMMER = '''
 start:  value
 
@@ -34,46 +46,53 @@ start:  value
 %ignore " "
 
 _PLUS: "+"i
-        | "plus"i
+     | "plus"i
 _MINUS: "-"i
-            | "minus"i
+      | "minus"i
 _TIMES: "*"i
-            | "times"i
-            | "multiplied by"i
-            | "multiplied with"i
-NAMED_DICE: "coin"i
-                    | "pyramid"i
-                    | "tetrahedron"i
-                    | "octahedron"i
-                    | "cube"i
-                    | "decahedron"i
-                    | "dodecahedron"i
-                    | "icosahedron"i
-                    | "to hit"i
-                    | "saving throw"i
-                    | "skill check"i
-                    | "percentile"i
-                    | "percent"i
+      | "times"i
+      | "multiplied by"i
+      | "multiplied with"i
 
 die: "d"i value
-        | value "sided"i ("dice"i|"die"i)
-        | NAMED_DICE
+   | value "sided"i ("dice"i|"die"i)
+   | NAMED_DICE
 
 dice: die -> roll_one
-        | value die -> roll_n
+    | value die -> roll_n
 
 value: dice
-         | "("i value ")"i
-         | INT
-         | sum
+     | WEAPON
+     | "("i value ")"i
+     | INT
+     | sum
 
 sum: sum _PLUS mul -> add
-        | sum _MINUS mul -> sub
-        | mul -> value
+   | sum _MINUS mul -> sub
+   | mul -> value
 
 mul: mul _TIMES value
-     | value -> value
+   | value -> value
 '''
+GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
+GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
+# GRAMMER += list_to_lark_literal("SPELL", (s["name"] for s in SPELLS))
+
+
+@v_args(inline=True)
+class DnD5eKnowledge(Transformer):
+    def __init__(self):
+        super().__init__(visit_tokens=True)
+
+    def find_named_object(self, name: str, l: Iterable[Mapping[Any, Any]]) -> Mapping[Any, Any]:
+        return next(filter(lambda i: i["name"].lower() == name.lower(), l))
+
+    def WEAPON(self, name):
+        weapon = self.find_named_object(name, WEAPONS)
+        dice_spec = weapon["damage_dice"]
+        logging.debug("parsing damage dice %s for weapon %s", dice_spec, name)
+        parser = Lark(GRAMMER)
+        return parser.parse(dice_spec, start="value")
 
 
 @v_args(inline=True)
@@ -113,11 +132,13 @@ class EvalDice(Transformer):
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     parser = Lark(GRAMMER)
-    tree = parser.parse(dice_spec)
+    tree1 = parser.parse(dice_spec)
+    logging.debug("Initial parse tree: %r", tree1)
+    tree2 = DnD5eKnowledge().transform(tree1)
+    logging.debug("DnD transformed parse tree: %r", tree2)
     transformer = EvalDice()
-    logging.debug("Parse tree: %r", tree)
-    transformed_tree = transformer.transform(tree)
-    return (transformed_tree.children[0], transformer.dice_results)
+    tree3 = transformer.transform(tree2)
+    return (tree3.children[0], transformer.dice_results)
 
 
 def describe_dice(dice_results: Sequence[int]) -> str:

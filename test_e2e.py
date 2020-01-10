@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from absl.testing import absltest
 from flask import Flask, request
 import unittest
 import json
@@ -35,4 +36,4 @@ class E2ETest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

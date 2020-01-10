@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-from main import roll, describe_dice, handleRoll
+from main import roll, describe_dice, handleRoll, DnD5eKnowledge
 
+from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
 import unittest
-from unittest.mock import MagicMock
+from lark import Tree, Token
 
 
 class RollTest(unittest.TestCase):
@@ -12,6 +13,9 @@ class RollTest(unittest.TestCase):
         self.assertEqual(roll("1+1"), (2, []))
         self.assertEqual(roll("1+2*3"), (7, []))
         self.assertEqual(roll("(1+2)*3"), (9, []))
+
+    def test_weapon(self):
+        self.assertEqual(roll("Blowgun"), (1, []))
 
 
 class DescribeDiceTest(unittest.TestCase):
@@ -35,5 +39,35 @@ class TestHandleRoll(unittest.TestCase):
         handleRoll(req, res)
 
 
+class TestDnD5eKnowledge(unittest.TestCase):
+    def setUp(self):
+        self.club_tree = Tree("value", [
+            Tree("value", [
+                Tree("roll_n", [
+                    Tree("value", [Token("INT", '1')]),
+                    Tree("die", [Tree("value", [Token("INT", '4')])])
+                ])
+            ])
+        ])
+        self.blowgun_tree = Tree("value", [
+            Tree("value", [Token("INT", '1')])
+        ])
+
+    def test_dice_weapon(self):
+        initial_tree = Tree("value", [Token('WEAPON', 'Club')])
+        final_tree = DnD5eKnowledge().transform(initial_tree)
+        self.assertEqual(final_tree, self.club_tree)
+
+    def test_const_weapon(self):
+        initial_tree = Tree("value", [Token('WEAPON', 'Blowgun')])
+        final_tree = DnD5eKnowledge().transform(initial_tree)
+        self.assertEqual(final_tree, self.blowgun_tree)
+
+    def test_weapon_wrong_case(self):
+        initial_tree = Tree("value", [Token('WEAPON', 'cLuB')])
+        final_tree = DnD5eKnowledge().transform(initial_tree)
+        self.assertEqual(final_tree, self.club_tree)
+
+
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
