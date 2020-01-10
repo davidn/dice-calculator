@@ -4,8 +4,9 @@ from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 import json
-from lark import Lark, Transformer, v_args, Tree
+from lark import Lark, Transformer, v_args, Tree, Token
 from random import randint
+import re
 from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,6 +33,19 @@ SPELLS = json.load(open("data/spells.json"))
 WEAPONS = json.load(open("data/weapons.json"))
 
 
+def pprint(obj: Any, depth: int = 0) -> str:
+    out = ""
+    if isinstance(obj, Tree):
+        out = " "*depth + "- " + obj.data + ":\n"
+        for child in obj.children:
+            out += pprint(child, depth+1)
+    elif isinstance(obj, Token):
+        out += " "*depth + "- " + obj.type + ": " + obj.value + "\n"
+    else:
+        out += " "*depth + "- " + repr(obj) + "\n"
+    return out
+
+
 def list_to_lark_literal(literal_name: str, values: Iterable[str], case_sensitive=False) -> str:
     case_marker = "" if case_sensitive else "i"
     spec = f"\n{literal_name}:"
@@ -40,7 +54,7 @@ def list_to_lark_literal(literal_name: str, values: Iterable[str], case_sensitiv
 
 
 GRAMMER = '''
-start:  value
+start:  sum
 
 %import common.INT
 %ignore " "
@@ -54,29 +68,68 @@ _TIMES: "*"i
       | "multiplied by"i
       | "multiplied with"i
 
-die: "d"i value
-   | value "sided"i ("dice"i|"die"i)
-   | NAMED_DICE
-
-dice: die -> roll_one
-    | value die -> roll_n
-
-value: dice
-     | WEAPON
-     | "("i value ")"i
-     | INT
-     | sum
-
 sum: sum _PLUS mul -> add
    | sum _MINUS mul -> sub
    | mul -> value
 
 mul: mul _TIMES value
    | value -> value
+
+value: dice
+     | WEAPON
+     | spell
+     | "("i sum ")"i
+     | INT
+
+dice: _die -> roll_one
+    | value _die -> roll_n
+
+_die: "d"i value
+   | value "sided"i ("dice"i|"die"i)
+   | NAMED_DICE
+
+spell: SPELL_NAME -> spell_default
+     | SPELL_NAME "at level" INT
+     | "level" INT SPELL_NAME -> spell_reversed
+
+SPELL_NAME: "Fireball"i
+          | "Magic Missile"i
 '''
 GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
-# GRAMMER += list_to_lark_literal("SPELL", (s["name"] for s in SPELLS))
+# GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
+
+
+@v_args(inline=True)
+class NumberTransformer(Transformer):
+    def __init__(self):
+        super().__init__(visit_tokens=True)
+
+    def NAMED_DICE(self, name):
+        return NAMED_DICE[name]
+
+    INT=int
+
+
+@v_args(tree=True)
+class SimplifyTransformer(NumberTransformer):
+    def value(self, tree):
+        return tree.children[0]
+
+    def sum(self, tree):
+        # check if we have a sum of dice roll
+        if all(isinstance(child, Tree) and
+               child.data in ("roll_n, roll_one")
+               for child in tree.children):
+            # check if all the dice are the same:
+            die_size = tree.children[0].children[-1]
+            if all(child.children[-1] == die_size for child in tree.children):
+                num_dice = 0
+                for roll in tree.children:
+                    num_dice += roll.children[0] if roll.data == "roll_n" else 1
+                return Tree('roll_n', [num_dice, die_size])
+        # no simplification possible
+        return tree
 
 
 @v_args(inline=True)
@@ -85,14 +138,52 @@ class DnD5eKnowledge(Transformer):
         super().__init__(visit_tokens=True)
 
     def find_named_object(self, name: str, l: Iterable[Mapping[Any, Any]]) -> Mapping[Any, Any]:
-        return next(filter(lambda i: i["name"].lower() == name.lower(), l))
+        try:
+            return next(filter(lambda i: i["name"].lower() == name.lower(), l))
+        except StopIteration:
+            raise Exception(f"Could not find {name}")
 
-    def WEAPON(self, name):
+    def WEAPON(self, name) -> Tree:
         weapon = self.find_named_object(name, WEAPONS)
         dice_spec = weapon["damage_dice"]
-        logging.debug("parsing damage dice %s for weapon %s", dice_spec, name)
         parser = Lark(GRAMMER)
-        return parser.parse(dice_spec, start="value")
+        tree = parser.parse(dice_spec, start="sum")
+        logging.debug("weapon %s has damage dice %s parsed as:\n%s",
+                      name, dice_spec, pprint(tree))
+        return tree
+
+    def spell(self, spell: Mapping[str, Any], level: int) -> Tree:
+        spell_tree = self.spell_default(spell)
+        if level < spell["level_int"]:
+            raise Exception("Can't case spell at this level.")
+        m = re.search(r"\d+d\d+( + \d+)?", spell["higher_level"])
+        if not m:
+            raise Exception("Could't determine additional damage dice for %s" % spell["name"])
+        parser = Lark(GRAMMER)
+        higher_level_tree = parser.parse(m.group(0), start="sum")
+        logging.debug("spell %s has damage dice %s per extra level parsed as:\n%s",
+                      spell["name"], m.group(0), pprint(higher_level_tree))
+        for level in range(level-spell["level_int"]):
+            spell_tree = Tree('sum', [spell_tree, higher_level_tree])
+        logging.debug("spell %s has complete parsed as:\n%s",
+                      spell["name"], pprint(spell_tree))
+        return spell_tree
+
+    def spell_reversed(self, level: int, spell: Mapping[str, Any]) -> Tree:
+        return self.spell(spell, level)
+
+    def spell_default(self, spell: Mapping[str, Any]) -> Tree:
+        m = re.search(r"\d+d\d+( \+ \d+)?", spell["desc"])
+        if not m:
+            raise Exception(f"could't determine damage dice for %s" % spell["name"])
+        parser = Lark(GRAMMER)
+        tree = parser.parse(m.group(0), start="sum")
+        logging.debug("spell %s has base damage dice %s parsed as:\n%s",
+                      spell["name"], m.group(0), pprint(tree))
+        return tree
+
+    def SPELL_NAME(self, name):
+        return self.find_named_object(name, SPELLS)
 
 
 @v_args(inline=True)
@@ -100,13 +191,6 @@ class EvalDice(Transformer):
     def __init__(self):
         super().__init__(visit_tokens=True)
         self.dice_results = []
-
-    INT = int
-
-    def value(self, x):
-        return x
-
-    die = value
 
     def roll_one(self, sides):
         res = randint(1, sides)
@@ -116,9 +200,6 @@ class EvalDice(Transformer):
 
     def roll_n(self, count, sides):
         return sum(self.roll_one(sides) for x in range(count))
-
-    def NAMED_DICE(self, name):
-        return NAMED_DICE[name]
 
     def add(self, a, b):
         return a+b
@@ -132,13 +213,16 @@ class EvalDice(Transformer):
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     parser = Lark(GRAMMER)
-    tree1 = parser.parse(dice_spec)
-    logging.debug("Initial parse tree: %r", tree1)
-    tree2 = DnD5eKnowledge().transform(tree1)
-    logging.debug("DnD transformed parse tree: %r", tree2)
+    tree = parser.parse(dice_spec)
+    logging.debug("Initial parse tree:\n%s", pprint(tree))
+    tree = NumberTransformer().transform(tree)
+    tree = DnD5eKnowledge().transform(tree)
+    tree = SimplifyTransformer().transform(tree)
+    logging.debug("DnD transformed parse tree:\n%s", pprint(tree))
     transformer = EvalDice()
-    tree3 = transformer.transform(tree2)
-    return (tree3.children[0], transformer.dice_results)
+    tree = transformer.transform(tree)
+    tree = SimplifyTransformer().transform(tree)
+    return (tree.children[0], transformer.dice_results)
 
 
 def describe_dice(dice_results: Sequence[int]) -> str:
