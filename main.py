@@ -9,6 +9,7 @@ from random import randint
 import re
 import sys
 from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING
+from copy import deepcopy
 
 if TYPE_CHECKING:
     import flask
@@ -84,6 +85,7 @@ mul: mul _TIMES value
 
 value: dice
      | critical
+     | advantage
      | "("i sum ")"i
      | INT
 
@@ -95,6 +97,9 @@ _damage: WEAPON
 
 dice: _die -> roll_one
     | value _die -> roll_n
+
+advantage: dice "with advantage"i
+         | dice "with disadvantage"i -> disadvantage
 
 _die: "d"i value
    | value "sided"i ("dice"i|"die"i)
@@ -210,6 +215,19 @@ class CritTransformer(Transformer):
             return tree.children[0]
         return tree
 
+    def disadvantage(self, tree):
+        return self.advantage(tree, 'min')
+
+    def advantage(self, tree, operation='max'):
+        for i in range(len(tree.children)):
+            if isinstance(tree.children[i], Tree):
+                tree.children[i] = self.advantage(tree.children[i], operation)
+        if tree.data == "roll_n":
+            tree = Tree(operation, [tree, deepcopy(tree)])
+        if tree.data in ("advantage", "disadvantage"):
+            return tree.children[0]
+        return tree
+
 
 @v_args(inline=True)
 class EvalDice(Transformer):
@@ -234,6 +252,12 @@ class EvalDice(Transformer):
 
     def mul(self, a, b):
         return a*b
+
+    def max(self, a, b):
+        return max(a,b)
+
+    def min(self, a, b):
+        return min(a,b)
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:

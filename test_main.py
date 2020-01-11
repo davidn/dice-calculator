@@ -18,8 +18,18 @@ class RollTest(absltest.TestCase):
         self.assertEqual(roll("Blowgun"), (1, []))
 
     def test_crit(self):
-        _ , dice = roll("critical longsword")
+        _, dice = roll("critical longsword")
         self.assertLen(dice, 2)
+
+    def test_advantage(self):
+        final, dice = roll("to hit with advantage")
+        self.assertLen(dice, 2)
+        self.assertEqual(final, max(dice))
+
+    def test_disadvantage(self):
+        final, dice = roll("to hit with disadvantage")
+        self.assertLen(dice, 2)
+        self.assertEqual(final, min(dice))
 
     def test_spell(self):
         # repeat multiple times to ensure we don't just get lucky
