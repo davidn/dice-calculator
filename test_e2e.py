@@ -34,6 +34,14 @@ class E2ETest(unittest.TestCase):
         self.assertEqual("ACTIONS_ON_GOOGLE", aog2["platform"])
         self.assertEqual("Re-roll", aog2["suggestions"]["suggestions"][0]["title"])
 
+    def test_error(self):
+        resp = self.client.post(
+            json={"query_result": {"action": "roll", "parameters": {"dice_spec": "unparsable gibberish"}}}
+        )
+        resp_json = json.loads(resp.data)
+        text = resp_json["fulfillmentMessages"][0]["text"]["text"][0]
+        self.assertRegex(text, "(?i)sorry")
+
 
 if __name__ == '__main__':
     absltest.main()

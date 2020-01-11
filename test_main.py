@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from main import roll, describe_dice, handleRoll, DnD5eKnowledge, SimplifyTransformer, CritTransformer, pprint
+from main import UnfulfillableRequestError, roll, describe_dice, handleRoll, DnD5eKnowledge, SimplifyTransformer, CritTransformer, pprint
 
 from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
@@ -58,6 +58,14 @@ class HandleRollTest(unittest.TestCase):
         req.query_result.action = "roll"
         res = WebhookResponse()
         handleRoll(req, res)
+
+    def test_graceful_error(self):
+        req = WebhookRequest()
+        req.query_result.parameters["dice_spec"] = "unparsable gibberish 1dd5"
+        req.query_result.action = "roll"
+        res = WebhookResponse()
+        with self.assertRaisesRegex(UnfulfillableRequestError, '(?i)sorry'):
+            handleRoll(req, res)
 
 
 class CritTransformerTest(unittest.TestCase):

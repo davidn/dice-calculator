@@ -5,6 +5,7 @@ from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 import json
 from lark import Lark, Transformer, v_args, Tree, Token
+from lark.exceptions import LarkError
 from random import randint
 import re
 import sys
@@ -18,6 +19,18 @@ if TYPE_CHECKING:
 # Lark has recursion issues
 if sys.getrecursionlimit() < 5000:
     sys.setrecursionlimit(5000)
+
+
+class UnfulfillableRequestError(Exception):
+    pass
+
+
+class RecognitionError(UnfulfillableRequestError):
+    pass
+
+
+class ImpossibleSpellError(UnfulfillableRequestError):
+    pass
 
 
 NAMED_DICE = {
@@ -89,7 +102,7 @@ value: dice
      | "("i sum ")"i
      | INT
 
-critical: "critical" _damage
+critical: "critical"i "to"i? "hit"i? "with"? "a"? _damage
         | _damage -> value
 
 _damage: WEAPON
@@ -157,7 +170,7 @@ class DnD5eKnowledge(Transformer):
         try:
             return next(filter(lambda i: i["name"].lower() == name.lower(), l))
         except StopIteration:
-            raise Exception(f"Could not find {name}")
+            raise RecognitionException(f"Sorry, I don't know what {name} is") from None
 
     def WEAPON(self, name) -> Tree:
         weapon = self.find_named_object(name, WEAPONS)
@@ -171,10 +184,11 @@ class DnD5eKnowledge(Transformer):
     def spell(self, spell: Mapping[str, Any], level: int) -> Tree:
         spell_tree = self.spell_default(spell)
         if level < spell["level_int"]:
-            raise Exception("Can't case spell at this level.")
+            raise ImpossibleSpellError("Sorry, %s is level %d, so I can't cast it at level %d" %
+            (spell["name"], spell["level_int"], level))
         m = re.search(r"\d+d\d+( + \d+)?", spell["higher_level"])
         if not m:
-            raise Exception("Could't determine additional damage dice for %s" % spell["name"])
+            raise ImpossibleSpellError("Sorry, I could't determine the additional damage dice for %s" % spell["name"])
         parser = Lark(GRAMMER)
         higher_level_tree = parser.parse(m.group(0), start="sum")
         logging.debug("spell %s has damage dice %s per extra level parsed as:\n%s",
@@ -191,7 +205,7 @@ class DnD5eKnowledge(Transformer):
     def spell_default(self, spell: Mapping[str, Any]) -> Tree:
         m = re.search(r"\d+d\d+( \+ \d+)?", spell["desc"])
         if not m:
-            raise Exception(f"could't determine damage dice for %s" % spell["name"])
+            raise ImpossibleSpellError(f"Sorry, I couldn't find the damage dice for %s" % spell["name"])
         parser = Lark(GRAMMER)
         tree = parser.parse(m.group(0), start="sum")
         logging.debug("spell %s has base damage dice %s parsed as:\n%s",
@@ -261,18 +275,22 @@ class EvalDice(Transformer):
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
-    parser = Lark(GRAMMER)
-    tree = parser.parse(dice_spec)
-    logging.debug("Initial parse tree:\n%s", pprint(tree))
-    tree = NumberTransformer().transform(tree)
-    tree = DnD5eKnowledge().transform(tree)
-    tree = SimplifyTransformer().transform(tree)
-    tree = CritTransformer().transform(tree)
-    logging.debug("DnD transformed parse tree:\n%s", pprint(tree))
-    transformer = EvalDice()
-    tree = transformer.transform(tree)
-    tree = SimplifyTransformer().transform(tree)
-    return (tree.children[0], transformer.dice_results)
+    try:
+        parser = Lark(GRAMMER)
+        tree = parser.parse(dice_spec)
+        logging.debug("Initial parse tree:\n%s", pprint(tree))
+        tree = NumberTransformer().transform(tree)
+        tree = DnD5eKnowledge().transform(tree)
+        tree = SimplifyTransformer().transform(tree)
+        tree = CritTransformer().transform(tree)
+        logging.debug("DnD transformed parse tree:\n%s", pprint(tree))
+        transformer = EvalDice()
+        tree = transformer.transform(tree)
+        tree = SimplifyTransformer().transform(tree)
+        return (tree.children[0], transformer.dice_results)
+    except LarkError as e:
+        raise RecognitionError("Sorry, I couldn't understand your request") from e
+
 
 
 def describe_dice(dice_results: Sequence[int]) -> str:
@@ -284,7 +302,9 @@ def describe_dice(dice_results: Sequence[int]) -> str:
     return description
 
 
-def add_fulfillment_messages(res: WebhookResponse, display_text: Optional[str], ssml: Optional[str], suggestions: Sequence[str]):
+def add_fulfillment_messages(
+        res: WebhookResponse, display_text: str,
+        ssml: Optional[str] = None, suggestions: Sequence[str] = None):
     res.fulfillment_messages.add().text.text.append(display_text)
 
     if ssml:
@@ -323,8 +343,15 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 def handleHttp(request: 'flask.Request') -> str:
     req = WebhookRequest()
     res = WebhookResponse()
-    json_format.Parse(request.data, req, ignore_unknown_fields=True)
-    if req.query_result.action == "roll":
-        handleRoll(req, res)
-
+    try:
+        json_format.Parse(request.data, req, ignore_unknown_fields=True)
+        if req.query_result.action == "roll":
+            handleRoll(req, res)
+    except UnfulfillableRequestError as e:
+        logging.exception(e)
+        add_fulfillment_messages(res, str(e))
     return json_format.MessageToJson(res)
+
+
+if __name__ == '__main__':
+    print(roll(" ".join(sys.argv[1:]))[0])
