@@ -5,7 +5,7 @@ from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 import json
 from lark import Lark, Transformer, v_args, Tree, Token
-from lark.exceptions import LarkError
+from lark.exceptions import LarkError, VisitError
 from random import randint
 import re
 import sys
@@ -275,10 +275,13 @@ class EvalDice(Transformer):
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
-    try:
         parser = Lark(GRAMMER)
+    try:
         tree = parser.parse(dice_spec)
-        logging.debug("Initial parse tree:\n%s", pprint(tree))
+    except LarkError as e:
+        raise RecognitionError("Sorry, I couldn't understand your request") from e
+    logging.debug("Initial parse tree:\n%s", pprint(tree))
+    try:
         tree = NumberTransformer().transform(tree)
         tree = DnD5eKnowledge().transform(tree)
         tree = SimplifyTransformer().transform(tree)
@@ -287,9 +290,10 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
         transformer = EvalDice()
         tree = transformer.transform(tree)
         tree = SimplifyTransformer().transform(tree)
-        return (tree.children[0], transformer.dice_results)
-    except LarkError as e:
-        raise RecognitionError("Sorry, I couldn't understand your request") from e
+    except: VisitError as e:
+        #  Get our nice exception out of lark's wrapper
+        raise e.orig_exc
+    return (tree.children[0], transformer.dice_results)
 
 
 
