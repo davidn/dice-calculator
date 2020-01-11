@@ -9,7 +9,7 @@ steps:
   args: ['python3','-m', 'unittest']
 
 - name: 'python:3.7'
-  args: ['./pytype.py']
+  args: ['./pytype_script.sh']
 
 - name: 'gcr.io/cloud-builders/gcloud'
   args: ['functions', 'deploy', 'roll', '--trigger-http', '--runtime', 'python37', '--entry-point', 'handleHttp']

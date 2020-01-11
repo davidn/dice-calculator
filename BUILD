@@ -44,7 +44,7 @@ py_test(
     deps = [
         ":main",
         test_requirement("pytype")
-    ],
+    ] + transitive_requirement,
 )
 
 filegroup(

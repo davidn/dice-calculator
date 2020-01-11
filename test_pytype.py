@@ -3,5 +3,5 @@
 import sys
 from pytype.tools.analyze_project.main import main
 
-sys.argv = ["pytype", "main.py"]
+sys.argv = ["pytype", ]
 sys.exit(main())
