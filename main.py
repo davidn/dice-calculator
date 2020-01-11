@@ -275,7 +275,7 @@ class EvalDice(Transformer):
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
-        parser = Lark(GRAMMER)
+    parser = Lark(GRAMMER)
     try:
         tree = parser.parse(dice_spec)
     except LarkError as e:
@@ -290,7 +290,7 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
         transformer = EvalDice()
         tree = transformer.transform(tree)
         tree = SimplifyTransformer().transform(tree)
-    except: VisitError as e:
+    except VisitError as e:
         #  Get our nice exception out of lark's wrapper
         raise e.orig_exc
     return (tree.children[0], transformer.dice_results)
