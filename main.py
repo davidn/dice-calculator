@@ -9,7 +9,8 @@ from lark.exceptions import LarkError, VisitError
 from random import randint
 import re
 import sys
-from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING
+from typing import (
+    Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING)
 from copy import deepcopy
 
 if TYPE_CHECKING:
@@ -67,7 +68,8 @@ def pprint(obj: Any, depth: int = 0) -> str:
     return out
 
 
-def list_to_lark_literal(literal_name: str, values: Iterable[str], case_sensitive=False) -> str:
+def list_to_lark_literal(
+        literal_name: str, values: Iterable[str], case_sensitive=False) -> str:
     case_marker = "" if case_sensitive else "i"
     spec = f"\n{literal_name}:"
     spec += ("\n|").join(f"\"{v}\"{case_marker}" for v in values)
@@ -128,6 +130,7 @@ GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
 
 PARSER = Lark(GRAMMER)
 
+
 @v_args(inline=True)
 class NumberTransformer(Transformer):
     def __init__(self):
@@ -136,7 +139,7 @@ class NumberTransformer(Transformer):
     def NAMED_DICE(self, name):
         return NAMED_DICE[name]
 
-    INT=int
+    INT = int
 
 
 @v_args(tree=True)
@@ -167,11 +170,13 @@ class DnD5eKnowledge(Transformer):
     def __init__(self):
         super().__init__(visit_tokens=True)
 
-    def find_named_object(self, name: str, l: Iterable[Mapping[Any, Any]]) -> Mapping[Any, Any]:
+    def find_named_object(self, name: str,
+                          l: Iterable[Mapping[Any, Any]]) -> Mapping[Any, Any]:
         try:
             return next(filter(lambda i: i["name"].lower() == name.lower(), l))
         except StopIteration:
-            raise RecognitionException(f"Sorry, I don't know what {name} is") from None
+            raise RecognitionException(
+                f"Sorry, I don't know what {name} is") from None
 
     def WEAPON(self, name) -> Tree:
         weapon = self.find_named_object(name, WEAPONS)
@@ -184,14 +189,18 @@ class DnD5eKnowledge(Transformer):
     def spell(self, spell: Mapping[str, Any], level: int) -> Tree:
         spell_tree = self.spell_default(spell)
         if level < spell["level_int"]:
-            raise ImpossibleSpellError("Sorry, %s is level %d, so I can't cast it at level %d" %
-            (spell["name"], spell["level_int"], level))
+            raise ImpossibleSpellError(
+                "Sorry, %s is level %d, so I can't cast it at level %d" %
+                (spell["name"], spell["level_int"], level))
         m = re.search(r"\d+d\d+( + \d+)?", spell["higher_level"])
         if not m:
-            raise ImpossibleSpellError("Sorry, I could't determine the additional damage dice for %s" % spell["name"])
+            raise ImpossibleSpellError(
+                "Sorry, I could't determine the additional damage dice for %s"
+                % spell["name"])
         higher_level_tree = PARSER.parse(m.group(0), start="sum")
-        logging.debug("spell %s has damage dice %s per extra level parsed as:\n%s",
-                      spell["name"], m.group(0), pprint(higher_level_tree))
+        logging.debug(
+            "spell %s has damage dice %s per extra level parsed as:\n%s",
+            spell["name"], m.group(0), pprint(higher_level_tree))
         for level in range(level-spell["level_int"]):
             spell_tree = Tree('sum', [spell_tree, higher_level_tree])
         logging.debug("spell %s has complete parsed as:\n%s",
@@ -204,7 +213,9 @@ class DnD5eKnowledge(Transformer):
     def spell_default(self, spell: Mapping[str, Any]) -> Tree:
         m = re.search(r"\d+d\d+( \+ \d+)?", spell["desc"])
         if not m:
-            raise ImpossibleSpellError(f"Sorry, I couldn't find the damage dice for %s" % spell["name"])
+            raise ImpossibleSpellError(
+                f"Sorry, I couldn't find the damage dice for %s"
+                % spell["name"])
         tree = PARSER.parse(m.group(0), start="sum")
         logging.debug("spell %s has base damage dice %s parsed as:\n%s",
                       spell["name"], m.group(0), pprint(tree))
@@ -218,7 +229,8 @@ class DnD5eKnowledge(Transformer):
 class CritTransformer(Transformer):
     def critical(self, tree):
         if tree.data == "roll_n":
-            logging.debug("critical is doubling %dd%d", tree.children[0], tree.children[1])
+            logging.debug("critical is doubling %dd%d",
+                          tree.children[0], tree.children[1])
             tree.children[0] *= 2
         for i in range(len(tree.children)):
             if isinstance(tree.children[i], Tree):
@@ -276,7 +288,8 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     try:
         tree = PARSER.parse(dice_spec)
     except LarkError as e:
-        raise RecognitionError("Sorry, I couldn't understand your request") from e
+        raise RecognitionError(
+            "Sorry, I couldn't understand your request") from e
     logging.debug("Initial parse tree:\n%s", pprint(tree))
     try:
         tree = NumberTransformer().transform(tree)
@@ -291,7 +304,6 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
         #  Get our nice exception out of lark's wrapper
         raise e.orig_exc
     return (tree.children[0], transformer.dice_results)
-
 
 
 def describe_dice(dice_results: Sequence[int]) -> str:
@@ -331,7 +343,8 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
     add_fulfillment_messages(
         res,
         f"You rolled a total of {roll_result}{dice_description}",
-        f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wood_rolling_short.ogg\"/>You rolled a total of {roll_result}</speak>",
+        f"<speak><audio src=\"https://actions.google.com/sounds/v1/impacts/wo"
+        f"od_rolling_short.ogg\"/>You rolled a total of {roll_result}</speak>",
         ["Re-roll"]
     )
     context = res.output_contexts.add()
