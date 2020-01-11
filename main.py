@@ -320,12 +320,12 @@ def add_fulfillment_messages(
         ssml: Optional[str] = None, suggestions: Sequence[str] = None):
     res.fulfillment_messages.add().text.text.append(display_text)
 
+    fulfillment_message = res.fulfillment_messages.add()
+    fulfillment_message.platform = Intent.Message.ACTIONS_ON_GOOGLE
+    sr = fulfillment_message.simple_responses.simple_responses.add()
+    sr.display_text = display_text
     if ssml:
-        fulfillment_message = res.fulfillment_messages.add()
-        fulfillment_message.platform = Intent.Message.ACTIONS_ON_GOOGLE
-        sr = fulfillment_message.simple_responses.simple_responses.add()
         sr.ssml = ssml
-        sr.display_text = display_text
 
     if suggestions:
         fulfillment_message = res.fulfillment_messages.add()
