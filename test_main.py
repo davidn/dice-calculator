@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from main import roll, describe_dice, handleRoll, DnD5eKnowledge, SimplifyTransformer, pprint
+from main import roll, describe_dice, handleRoll, DnD5eKnowledge, SimplifyTransformer, CritTransformer, pprint
 
 from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
@@ -16,6 +16,10 @@ class RollTest(absltest.TestCase):
 
     def test_weapon(self):
         self.assertEqual(roll("Blowgun"), (1, []))
+
+    def test_crit(self):
+        _ , dice = roll("critical longsword")
+        self.assertLen(dice, 2)
 
     def test_spell(self):
         # repeat multiple times to ensure we don't just get lucky
@@ -45,6 +49,28 @@ class HandleRollTest(unittest.TestCase):
         res = WebhookResponse()
         handleRoll(req, res)
 
+
+class CritTransformerTest(unittest.TestCase):
+    def test_int(self):
+        in_tree = Tree('critical', [
+            1
+        ])
+        out_tree = CritTransformer().transform(in_tree)
+        self.assertEqual(out_tree, 1)
+
+    def test_dice(self):
+        in_tree = Tree('critical', [
+            Tree('roll_n', [3, 4])
+        ])
+        out_tree = CritTransformer().transform(in_tree)
+        self.assertEqual(out_tree, Tree('roll_n', [6, 4]))
+
+    def test_sum_dice(self):
+        in_tree = Tree('critical', [
+            Tree('sum', [Tree('roll_n', [3, 4]), 2])
+        ])
+        out_tree = CritTransformer().transform(in_tree)
+        self.assertEqual(out_tree, Tree('sum', [Tree('roll_n', [6, 4]), 2]))
 
 class SimplifyTransformerTest(unittest.TestCase):
     def test_collapse_value(self):

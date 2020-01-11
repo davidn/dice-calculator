@@ -83,10 +83,15 @@ mul: mul _TIMES value
    | value -> value
 
 value: dice
-     | WEAPON
-     | spell
+     | critical
      | "("i sum ")"i
      | INT
+
+critical: "critical" _damage
+        | _damage -> value
+
+_damage: WEAPON
+       | spell
 
 dice: _die -> roll_one
     | value _die -> roll_n
@@ -102,6 +107,7 @@ spell: SPELL_NAME -> spell_default
 GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
 GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
+
 
 @v_args(inline=True)
 class NumberTransformer(Transformer):
@@ -119,17 +125,19 @@ class SimplifyTransformer(NumberTransformer):
     def value(self, tree):
         return tree.children[0]
 
+    def roll_one(self, tree):
+        return Tree('roll_n', [1, tree.children[0]])
+
     def sum(self, tree):
         # check if we have a sum of dice roll
-        if all(isinstance(child, Tree) and
-               child.data in ("roll_n, roll_one")
+        if all(isinstance(child, Tree) and child.data == "roll_n"
                for child in tree.children):
             # check if all the dice are the same:
             die_size = tree.children[0].children[-1]
             if all(child.children[-1] == die_size for child in tree.children):
                 num_dice = 0
                 for roll in tree.children:
-                    num_dice += roll.children[0] if roll.data == "roll_n" else 1
+                    num_dice += roll.children[0]
                 return Tree('roll_n', [num_dice, die_size])
         # no simplification possible
         return tree
@@ -189,20 +197,34 @@ class DnD5eKnowledge(Transformer):
         return self.find_named_object(name, SPELLS)
 
 
+@v_args(tree=True)
+class CritTransformer(Transformer):
+    def critical(self, tree):
+        if tree.data == "roll_n":
+            logging.debug("critical is doubling %dd%d", tree.children[0], tree.children[1])
+            tree.children[0] *= 2
+        for i in range(len(tree.children)):
+            if isinstance(tree.children[i], Tree):
+                tree.children[i] = self.critical(tree.children[i])
+        if tree.data == "critical":
+            return tree.children[0]
+        return tree
+
+
 @v_args(inline=True)
 class EvalDice(Transformer):
     def __init__(self):
         super().__init__(visit_tokens=True)
         self.dice_results = []
 
-    def roll_one(self, sides):
-        res = randint(1, sides)
-        self.dice_results.append(res)
-        logging.debug("Rolled d%d, got %d", sides, res)
-        return res
-
     def roll_n(self, count, sides):
-        return sum(self.roll_one(sides) for x in range(count))
+        sum = 0
+        for _ in range(count):
+            res = randint(1, sides)
+            sum += res
+            self.dice_results.append(res)
+            logging.debug("Rolled d%d, got %d", sides, res)
+        return sum
 
     def add(self, a, b):
         return a+b
@@ -221,6 +243,7 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     tree = NumberTransformer().transform(tree)
     tree = DnD5eKnowledge().transform(tree)
     tree = SimplifyTransformer().transform(tree)
+    tree = CritTransformer().transform(tree)
     logging.debug("DnD transformed parse tree:\n%s", pprint(tree))
     transformer = EvalDice()
     tree = transformer.transform(tree)
