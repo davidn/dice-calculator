@@ -7,25 +7,32 @@ import json
 from lark import Lark, Transformer, v_args, Tree, Token
 from random import randint
 import re
+import sys
 from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import flask
 
+
+# Lark has recursion issues
+if sys.getrecursionlimit() < 5000:
+    sys.setrecursionlimit(5000)
+
+
 NAMED_DICE = {
-        "coin": 2,
-        "pyramid": 4,
-        "cube": 6,
-        "tetrahedron": 8,
-        "octahedron": 8,
-        "decahedron": 10,
-        "dodecahedron": 12,
-        "icosahedron": 20,
-        "saving throw": 20,
-        "skill check": 20,
-        "to hit": 20,
-        "percentile": 100,
-        "percent": 100
+    "coin": 2,
+    "pyramid": 4,
+    "cube": 6,
+    "tetrahedron": 8,
+    "octahedron": 8,
+    "decahedron": 10,
+    "dodecahedron": 12,
+    "icosahedron": 20,
+    "saving throw": 20,
+    "skill check": 20,
+    "to hit": 20,
+    "percentile": 100,
+    "percent": 100
 }
 
 

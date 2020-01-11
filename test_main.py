@@ -6,12 +6,6 @@ from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
 import unittest
 from lark import Tree, Token
-import sys
-
-
-# Lark has recursion issues
-if sys.getrecursionlimit() < 5000:
-    sys.setrecursionlimit(5000)
 
 
 class RollTest(absltest.TestCase):
