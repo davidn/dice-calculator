@@ -126,6 +126,7 @@ GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
 GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
 
+PARSER = Lark(GRAMMER)
 
 @v_args(inline=True)
 class NumberTransformer(Transformer):
@@ -175,8 +176,7 @@ class DnD5eKnowledge(Transformer):
     def WEAPON(self, name) -> Tree:
         weapon = self.find_named_object(name, WEAPONS)
         dice_spec = weapon["damage_dice"]
-        parser = Lark(GRAMMER)
-        tree = parser.parse(dice_spec, start="sum")
+        tree = PARSER.parse(dice_spec, start="sum")
         logging.debug("weapon %s has damage dice %s parsed as:\n%s",
                       name, dice_spec, pprint(tree))
         return tree
@@ -189,8 +189,7 @@ class DnD5eKnowledge(Transformer):
         m = re.search(r"\d+d\d+( + \d+)?", spell["higher_level"])
         if not m:
             raise ImpossibleSpellError("Sorry, I could't determine the additional damage dice for %s" % spell["name"])
-        parser = Lark(GRAMMER)
-        higher_level_tree = parser.parse(m.group(0), start="sum")
+        higher_level_tree = PARSER.parse(m.group(0), start="sum")
         logging.debug("spell %s has damage dice %s per extra level parsed as:\n%s",
                       spell["name"], m.group(0), pprint(higher_level_tree))
         for level in range(level-spell["level_int"]):
@@ -206,8 +205,7 @@ class DnD5eKnowledge(Transformer):
         m = re.search(r"\d+d\d+( \+ \d+)?", spell["desc"])
         if not m:
             raise ImpossibleSpellError(f"Sorry, I couldn't find the damage dice for %s" % spell["name"])
-        parser = Lark(GRAMMER)
-        tree = parser.parse(m.group(0), start="sum")
+        tree = PARSER.parse(m.group(0), start="sum")
         logging.debug("spell %s has base damage dice %s parsed as:\n%s",
                       spell["name"], m.group(0), pprint(tree))
         return tree
@@ -268,16 +266,15 @@ class EvalDice(Transformer):
         return a*b
 
     def max(self, a, b):
-        return max(a,b)
+        return max(a, b)
 
     def min(self, a, b):
-        return min(a,b)
+        return min(a, b)
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
-    parser = Lark(GRAMMER)
     try:
-        tree = parser.parse(dice_spec)
+        tree = PARSER.parse(dice_spec)
     except LarkError as e:
         raise RecognitionError("Sorry, I couldn't understand your request") from e
     logging.debug("Initial parse tree:\n%s", pprint(tree))

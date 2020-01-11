@@ -33,7 +33,7 @@ class RollTest(absltest.TestCase):
 
     def test_spell(self):
         # repeat multiple times to ensure we don't just get lucky
-        for _ in range(10):
+        for _ in range(30):
             outcome, dice = roll("Magic Missile")
             self.assertBetween(outcome, 2, 5)
             self.assertLen(dice, 1)
