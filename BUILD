@@ -39,8 +39,8 @@ py_test(
 )
 
 py_test(
-    name = "test_pytype",
-    srcs = ["test_pytype.py"],
+    name = "wrap_pytype",
+    srcs = ["wrap_pytype.py"],
     deps = [
         ":main",
         test_requirement("pytype")
