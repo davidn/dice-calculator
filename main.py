@@ -328,7 +328,7 @@ def add_fulfillment_messages(
     fulfillment_message.platform = Intent.Message.ACTIONS_ON_GOOGLE
     sr = fulfillment_message.simple_responses.simple_responses.add()
     sr.display_text = display_text
-    sr.ssml = ssml if ssml else display_text
+    sr.ssml = ssml if ssml else f"<speak>{display_text}</speak>"
 
     if suggestions:
         fulfillment_message = res.fulfillment_messages.add()
