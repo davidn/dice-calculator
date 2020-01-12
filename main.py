@@ -81,6 +81,7 @@ start:  sum
 
 %import common.INT
 %ignore " "
+%ignore ","
 
 _PLUS: "+"i
      | "plus"i
@@ -121,8 +122,11 @@ _die: "d"i value
    | NAMED_DICE
 
 spell: SPELL_NAME -> spell_default
-     | SPELL_NAME "at level" INT
+     | SPELL_NAME "at level"i INT
+     | SPELL_NAME "at"? INT _ORDINAL "level"i
      | "level" INT SPELL_NAME -> spell_reversed
+     | INT _ORDINAL "level" SPELL_NAME -> spell_reversed
+_ORDINAL: "st"i | "nd"i | "rd"i | "th"i
 '''
 GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
