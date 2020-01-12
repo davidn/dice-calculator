@@ -154,7 +154,7 @@ class SimplifyTransformer(NumberTransformer):
     def roll_one(self, tree):
         return Tree('roll_n', [1, tree.children[0]])
 
-    def sum(self, tree):
+    def add(self, tree):
         # check if we have a sum of dice roll
         if all(isinstance(child, Tree) and child.data == "roll_n"
                for child in tree.children):
@@ -206,7 +206,7 @@ class DnD5eKnowledge(Transformer):
             "spell %s has damage dice %s per extra level parsed as:\n%s",
             spell["name"], m.group(0), pprint(higher_level_tree))
         for level in range(level-spell["level_int"]):
-            spell_tree = Tree('sum', [spell_tree, higher_level_tree])
+            spell_tree = Tree('add', [spell_tree, higher_level_tree])
         logging.debug("spell %s has complete parsed as:\n%s",
                       spell["name"], pprint(spell_tree))
         return spell_tree

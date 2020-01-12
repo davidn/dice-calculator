@@ -38,6 +38,11 @@ class RollTest(absltest.TestCase):
             self.assertBetween(outcome, 2, 5)
             self.assertLen(dice, 1)
 
+    def test_spell_level(self):
+        outcome, dice = roll("disintegrate at 7th level")
+        self.assertBetween(outcome, 53, 118)
+        self.assertLen(dice, 13)
+
 
 class DescribeDiceTest(unittest.TestCase):
     def test_one_dice(self):
@@ -85,10 +90,10 @@ class CritTransformerTest(unittest.TestCase):
 
     def test_sum_dice(self):
         in_tree = Tree('critical', [
-            Tree('sum', [Tree('roll_n', [3, 4]), 2])
+            Tree('add', [Tree('roll_n', [3, 4]), 2])
         ])
         out_tree = CritTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('sum', [Tree('roll_n', [6, 4]), 2]))
+        self.assertEqual(out_tree, Tree('add', [Tree('roll_n', [6, 4]), 2]))
 
 class SimplifyTransformerTest(unittest.TestCase):
     def test_collapse_value(self):
@@ -97,7 +102,7 @@ class SimplifyTransformerTest(unittest.TestCase):
         self.assertEqual(out_tree, 1)
 
     def test_combine_roll_one(self):
-        in_tree = Tree('sum', [
+        in_tree = Tree('add', [
             Tree('roll_one', [6]),
             Tree('roll_one', [6]),
         ])
@@ -105,7 +110,7 @@ class SimplifyTransformerTest(unittest.TestCase):
         self.assertEqual(out_tree, Tree('roll_n', [2, 6]))
 
     def test_combine_roll_one_and_n(self):
-        in_tree = Tree('sum', [
+        in_tree = Tree('add', [
             Tree('roll_one', [6]),
             Tree('roll_n', [2,6]),
         ])
@@ -113,7 +118,7 @@ class SimplifyTransformerTest(unittest.TestCase):
         self.assertEqual(out_tree, Tree('roll_n', [3, 6]))
 
     def test_combine_roll_n(self):
-        in_tree = Tree('sum', [
+        in_tree = Tree('add', [
             Tree('roll_n', [3,6]),
             Tree('roll_n', [2,6]),
         ])
@@ -121,7 +126,7 @@ class SimplifyTransformerTest(unittest.TestCase):
         self.assertEqual(out_tree, Tree('roll_n', [5, 6]))
 
     def test_no_combine_different(self):
-        in_tree = Tree('sum', [
+        in_tree = Tree('add', [
             Tree('roll_n', [3,4]),
             Tree('roll_n', [2,6]),
         ])
