@@ -39,6 +39,7 @@ NAMED_DICE = {
     "saving throw": 20,
     "skill check": 20,
     "to hit": 20,
+    "death saving throw": 20,
     "percentile": 100,
     "percent": 100
 }
