@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 IN_CLOUD = "GCP_PROJECT" in os.environ
 
 if IN_CLOUD:
-    from google.cloud import error_reporting, build_flask_context
+    from google.cloud import error_reporting
 
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
@@ -68,7 +68,8 @@ def handleHttp(request: 'flask.Request') -> str:
         logging.exception(e)
         if IN_CLOUD:
             client = error_reporting.Client()
-            client.report_exception(http_context=build_flask_context(request))
+            client.report_exception(
+                http_context=error_reporting.build_flask_context(request))
         add_fulfillment_messages(res, str(e))
     return json_format.MessageToJson(res)
 
