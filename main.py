@@ -4,11 +4,16 @@ from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 from typing import Sequence, Optional, TYPE_CHECKING
+import os
 
 from dice_calculator import roll, UnfulfillableRequestError, describe_dice
 
 if TYPE_CHECKING:
     import flask
+
+if "LOG_LEVEL" in os.environ:
+    logging.set_verbosity(os.environ["LOG_LEVEL"])
+
 
 def add_fulfillment_messages(
         res: WebhookResponse, display_text: str,
