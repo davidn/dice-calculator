@@ -11,9 +11,13 @@ from dice_calculator import roll, UnfulfillableRequestError, describe_dice
 if TYPE_CHECKING:
     import flask
 
+IN_CLOUD = "GCP_PROJECT" in os.environ
+
+if IN_CLOUD:
+    from google.cloud import error_reporting, build_flask_context
+
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
-
 
 def add_fulfillment_messages(
         res: WebhookResponse, display_text: str,
@@ -62,6 +66,9 @@ def handleHttp(request: 'flask.Request') -> str:
             handleRoll(req, res)
     except UnfulfillableRequestError as e:
         logging.exception(e)
+        if IN_CLOUD:
+            client = error_reporting.Client()
+            client.report_exception(http_context=build_flask_context(request))
         add_fulfillment_messages(res, str(e))
     return json_format.MessageToJson(res)
 
