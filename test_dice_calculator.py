@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-from dice_calculator import UnfulfillableRequestError, roll, describe_dice, DnD5eKnowledge, SimplifyTransformer, CritTransformer, pprint
+from dice_calculator import (
+    roll, describe_dice, DnD5eKnowledge, SimplifyTransformer, CritTransformer,
+    pprint)
 
 from absl.testing import absltest
 import unittest
@@ -77,6 +79,7 @@ class CritTransformerTest(unittest.TestCase):
         out_tree = CritTransformer().transform(in_tree)
         self.assertEqual(out_tree, Tree('add', [Tree('roll_n', [6, 4]), 2]))
 
+
 class SimplifyTransformerTest(unittest.TestCase):
     def test_collapse_value(self):
         in_tree = Tree('value', [1])
@@ -94,23 +97,23 @@ class SimplifyTransformerTest(unittest.TestCase):
     def test_combine_roll_one_and_n(self):
         in_tree = Tree('add', [
             Tree('roll_one', [6]),
-            Tree('roll_n', [2,6]),
+            Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
         self.assertEqual(out_tree, Tree('roll_n', [3, 6]))
 
     def test_combine_roll_n(self):
         in_tree = Tree('add', [
-            Tree('roll_n', [3,6]),
-            Tree('roll_n', [2,6]),
+            Tree('roll_n', [3, 6]),
+            Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
         self.assertEqual(out_tree, Tree('roll_n', [5, 6]))
 
     def test_no_combine_different(self):
         in_tree = Tree('add', [
-            Tree('roll_n', [3,4]),
-            Tree('roll_n', [2,6]),
+            Tree('roll_n', [3, 4]),
+            Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
         self.assertEqual(out_tree, in_tree)
@@ -121,15 +124,17 @@ class DnD5eKnowledgeTest(unittest.TestCase):
         self.club_tree = Tree("roll_n", [1, 4])
         self.fireball_tree = Tree("roll_n", [8, 6])
         self.fireball_higher_tree = Tree("roll_n", [1, 6])
-        self.fireball_level_five_tree = Tree("roll_n", [10,6])
-    
+        self.fireball_level_five_tree = Tree("roll_n", [10, 6])
+
     def assertSimpleTreeEqual(self, a, b):
         if isinstance(a, Tree):
             a = SimplifyTransformer().transform(a)
         if isinstance(b, Tree):
             b = SimplifyTransformer().transform(b)
-        self.assertEqual(a, b,
-            "Trees are not equal\nTree a:\n%s\nTree b:\n%s" %(pprint(a), pprint(b)))
+        self.assertEqual(
+            a, b,
+            "Trees are not equal\n"
+            "Tree a:\n%s\nTree b:\n%s" % (pprint(a), pprint(b)))
 
     def test_dice_weapon(self):
         initial_tree = Tree("value", [Token('WEAPON', 'Club')])
@@ -152,7 +157,8 @@ class DnD5eKnowledgeTest(unittest.TestCase):
             DnD5eKnowledge().transform(initial_tree)
 
     def test_spell_reverse(self):
-        initial_tree = Tree("spell_reversed", [5, Token('SPELL_NAME', 'fireball')])
+        initial_tree = Tree("spell_reversed",
+                            [5, Token('SPELL_NAME', 'fireball')])
         final_tree = DnD5eKnowledge().transform(initial_tree)
         self.assertSimpleTreeEqual(final_tree, self.fireball_level_five_tree)
 

@@ -312,5 +312,6 @@ def describe_dice(dice_results: Sequence[int]) -> str:
     description += " and " + str(dice_results[-1])
     return description
 
+
 if __name__ == '__main__':
     print(roll(" ".join(sys.argv[1:]))[0])

@@ -19,6 +19,7 @@ if IN_CLOUD:
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
 
+
 def add_fulfillment_messages(
         res: WebhookResponse, display_text: str,
         ssml: Optional[str] = None, suggestions: Sequence[str] = None):
@@ -71,9 +72,7 @@ def handleHttp(request: 'flask.Request') -> str:
                 client = error_reporting.Client()
                 client.report_exception(
                     http_context=error_reporting.build_flask_context(request))
-            except:
+            except Exception:
                 logging.exception("Failed to send error report to Google")
         add_fulfillment_messages(res, str(e))
     return json_format.MessageToJson(res)
-
-

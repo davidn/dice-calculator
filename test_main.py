@@ -24,5 +24,6 @@ class HandleRollTest(unittest.TestCase):
         with self.assertRaisesRegex(UnfulfillableRequestError, '(?i)sorry'):
             handleRoll(req, res)
 
+
 if __name__ == '__main__':
     absltest.main()

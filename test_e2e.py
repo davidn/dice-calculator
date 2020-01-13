@@ -19,24 +19,29 @@ class E2ETest(unittest.TestCase):
 
     def test_basic(self):
         resp = self.client.post(
-            json={"query_result": {"action": "roll", "parameters": {"dice_spec": "3"}}}
-        )
+            json={"query_result":
+                  {"action": "roll", "parameters": {"dice_spec": "3"}}})
         resp_json = json.loads(resp.data)
         text = resp_json["fulfillmentMessages"][0]["text"]["text"][0]
         self.assertIn("3", text)
 
         aog1 = resp_json["fulfillmentMessages"][1]
         self.assertEqual("ACTIONS_ON_GOOGLE", aog1["platform"])
-        self.assertIn("3", aog1["simpleResponses"]["simpleResponses"][0]["ssml"])
-        self.assertIn("3", aog1["simpleResponses"]["simpleResponses"][0]["displayText"])
+        self.assertIn(
+            "3", aog1["simpleResponses"]["simpleResponses"][0]["ssml"])
+        self.assertIn(
+            "3", aog1["simpleResponses"]["simpleResponses"][0]["displayText"])
 
         aog2 = resp_json["fulfillmentMessages"][2]
         self.assertEqual("ACTIONS_ON_GOOGLE", aog2["platform"])
-        self.assertEqual("Re-roll", aog2["suggestions"]["suggestions"][0]["title"])
+        self.assertEqual(
+            "Re-roll", aog2["suggestions"]["suggestions"][0]["title"])
 
     def test_error(self):
         resp = self.client.post(
-            json={"query_result": {"action": "roll", "parameters": {"dice_spec": "unparsable gibberish"}}}
+            json={"query_result":
+                  {"action": "roll", "parameters":
+                   {"dice_spec": "unparsable gibberish"}}}
         )
         resp_json = json.loads(resp.data)
         text = resp_json["fulfillmentMessages"][0]["text"]["text"][0]
