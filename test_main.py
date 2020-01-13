@@ -3,6 +3,7 @@
 from main import handleRoll
 from dice_calculator import UnfulfillableRequestError
 
+from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse
 import unittest
 
@@ -22,3 +23,6 @@ class HandleRollTest(unittest.TestCase):
         res = WebhookResponse()
         with self.assertRaisesRegex(UnfulfillableRequestError, '(?i)sorry'):
             handleRoll(req, res)
+
+if __name__ == '__main__':
+    absltest.main()
