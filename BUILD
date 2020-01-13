@@ -10,7 +10,6 @@ py_library(
     name = "main",
     srcs = ["main.py"],
     srcs_version = "PY3",
-    python_version = "PY3",
     data = ["data"],
     deps = [
 	":dice_calculator",
@@ -23,7 +22,6 @@ py_library(
     name = "dice_calculator",
     srcs = ["dice_calculator.py"],
     srcs_version = "PY3",
-    python_version = "PY3",
     data = ["data"],
     deps = [
         requirement("absl-py"),
