@@ -4,6 +4,7 @@ from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 from typing import Sequence, Optional, TYPE_CHECKING
+from opencensus.common.transports.async_ import AsyncTransport
 from opencensus.trace.tracer import Tracer
 from opencensus.trace.samplers import AlwaysOnSampler
 import os
@@ -30,10 +31,10 @@ if "LOG_LEVEL" in os.environ:
 def initialize_tracer(request: 'flask.Request') -> Tracer:
     if IN_CLOUD:
         propagator = google_cloud_format.GoogleCloudFormatPropagator()
-        exporter = trace_exporter.StackdriverExporter()
+        exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
     else:
         propagator = trace_context_http_header_format.TraceContextPropagator()
-        exporter = logging_exporter.LoggingExporter()
+        exporter = logging_exporter.LoggingExporter(transport=AsyncTransport)
     span_context = propagator.from_headers(request.headers)
     return Tracer(exporter=exporter, sampler=AlwaysOnSampler(),
                   propagator=propagator, span_context=span_context)
