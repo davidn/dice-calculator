@@ -4,6 +4,8 @@ from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
 from google.protobuf import json_format
 from typing import Sequence, Optional, TYPE_CHECKING
+from opencensus.trace.tracer import Tracer
+from opencensus.trace.samplers import AlwaysOnSampler
 import os
 
 from dice_calculator import roll, UnfulfillableRequestError, describe_dice
@@ -15,9 +17,18 @@ IN_CLOUD = "GCP_PROJECT" in os.environ
 
 if IN_CLOUD:
     from google.cloud import error_reporting
+    from opencensus.ext.stackdriver import trace_exporter
 
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
+
+
+def initialize_tracer():
+    if IN_CLOUD:
+        exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
+        return Tracer(exporter=exporter, sampler=AlwaysOnSampler())
+    else:
+        return Tracer(sampler=AlwaysOnSampler())
 
 
 def add_fulfillment_messages(
@@ -59,12 +70,14 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 
 
 def handleHttp(request: 'flask.Request') -> str:
+    tracer = initialize_tracer()
     req = WebhookRequest()
     res = WebhookResponse()
     try:
         json_format.Parse(request.data, req, ignore_unknown_fields=True)
         if req.query_result.action == "roll":
-            handleRoll(req, res)
+            with tracer.span(name='roll'):
+                handleRoll(req, res)
     except UnfulfillableRequestError as e:
         logging.exception(e)
         if IN_CLOUD:
