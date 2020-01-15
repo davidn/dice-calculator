@@ -36,7 +36,7 @@ def initialize_tracer(request: 'flask.Request') -> Tracer:
         exporter = logging_exporter.LoggingExporter()
     span_context = propagator.from_headers(request.headers)
     return Tracer(exporter=exporter, sampler=AlwaysOnSampler(),
-                  propagator=propagator)
+                  propagator=propagator, span_context=span_context)
 
 
 def add_fulfillment_messages(
@@ -78,7 +78,6 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 
 
 def handleHttp(request: 'flask.Request') -> str:
-    logging.info(request.headers)
     tracer = initialize_tracer(request)
     req = WebhookRequest()
     res = WebhookResponse()
