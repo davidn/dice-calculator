@@ -25,7 +25,7 @@ if "LOG_LEVEL" in os.environ:
 
 def initialize_tracer():
     if IN_CLOUD:
-        exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
+        exporter = trace_exporter.StackdriverExporter()
         return Tracer(exporter=exporter, sampler=AlwaysOnSampler())
     else:
         return Tracer(sampler=AlwaysOnSampler())
