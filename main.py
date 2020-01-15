@@ -18,17 +18,25 @@ IN_CLOUD = "GCP_PROJECT" in os.environ
 if IN_CLOUD:
     from google.cloud import error_reporting
     from opencensus.ext.stackdriver import trace_exporter
+    from opencensus.trace.propagation import google_cloud_format
+else:
+    from opencensus.trace.propagation import trace_context_http_header_format
+    from opencensus.trace import logging_exporter
 
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
 
 
-def initialize_tracer():
+def initialize_tracer(request: 'flask.Request') -> Tracer:
     if IN_CLOUD:
+        propagator = google_cloud_format.GoogleCloudFormatPropagator()
         exporter = trace_exporter.StackdriverExporter()
-        return Tracer(exporter=exporter, sampler=AlwaysOnSampler())
     else:
-        return Tracer(sampler=AlwaysOnSampler())
+        propagator = trace_context_http_header_format.TraceContextPropagator()
+        exporter = logging_exporter.LoggingExporter()
+    span_context = propagator.from_headers(request.headers)
+    return Tracer(exporter=exporter, sampler=AlwaysOnSampler(),
+                  propagator=propagator)
 
 
 def add_fulfillment_messages(
@@ -70,7 +78,7 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 
 
 def handleHttp(request: 'flask.Request') -> str:
-    tracer = initialize_tracer()
+    tracer = initialize_tracer(request)
     req = WebhookRequest()
     res = WebhookResponse()
     try:
