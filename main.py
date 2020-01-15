@@ -78,6 +78,7 @@ def handleRoll(req: WebhookRequest, res: WebhookResponse):
 
 
 def handleHttp(request: 'flask.Request') -> str:
+    logging.info(request.headers)
     tracer = initialize_tracer(request)
     req = WebhookRequest()
     res = WebhookResponse()
