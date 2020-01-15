@@ -9,6 +9,7 @@ import re
 import sys
 from typing import Sequence, Iterable, Tuple, Optional, Mapping, Any
 from copy import deepcopy
+from opencensus.trace import execution_context
 
 # Lark has recursion issues
 if sys.getrecursionlimit() < 5000:
@@ -177,14 +178,18 @@ class DnD5eKnowledge(Transformer):
                 f"Sorry, I don't know what {name} is") from None
 
     def WEAPON(self, name) -> Tree:
+        tracer = execution_context.get_opencensus_tracer()
         weapon = self.find_named_object(name, WEAPONS)
         dice_spec = weapon["damage_dice"]
-        tree = PARSER.parse(dice_spec, start="sum")
+        with tracer.span('parse_weapon'):
+            tracer.add_attribute_to_current_span("name", name)
+            tree = PARSER.parse(dice_spec, start="sum")
         logging.debug("weapon %s has damage dice %s parsed as:\n%s",
                       name, dice_spec, pprint(tree))
         return tree
 
     def spell(self, spell: Mapping[str, Any], level: int) -> Tree:
+        tracer = execution_context.get_opencensus_tracer()
         spell_tree = self.spell_default(spell)
         if level < spell["level_int"]:
             raise ImpossibleSpellError(
@@ -195,7 +200,9 @@ class DnD5eKnowledge(Transformer):
             raise ImpossibleSpellError(
                 "Sorry, I could't determine the additional damage dice for %s"
                 % spell["name"])
-        higher_level_tree = PARSER.parse(m.group(0), start="sum")
+        with tracer.span('parse_spell_additional'):
+            tracer.add_attribute_to_current_span("name", spell["name"])
+            higher_level_tree = PARSER.parse(m.group(0), start="sum")
         logging.debug(
             "spell %s has damage dice %s per extra level parsed as:\n%s",
             spell["name"], m.group(0), pprint(higher_level_tree))
@@ -209,12 +216,15 @@ class DnD5eKnowledge(Transformer):
         return self.spell(spell, level)
 
     def spell_default(self, spell: Mapping[str, Any]) -> Tree:
+        tracer = execution_context.get_opencensus_tracer()
         m = re.search(r"\d+d\d+( \+ \d+)?", spell["desc"])
         if not m:
             raise ImpossibleSpellError(
                 f"Sorry, I couldn't find the damage dice for %s"
                 % spell["name"])
-        tree = PARSER.parse(m.group(0), start="sum")
+        with tracer.span('parse_spell'):
+            tracer.add_attribute_to_current_span("name", spell["name"])
+            tree = PARSER.parse(m.group(0), start="sum")
         logging.debug("spell %s has base damage dice %s parsed as:\n%s",
                       spell["name"], m.group(0), pprint(tree))
         return tree
@@ -283,20 +293,25 @@ class EvalDice(Transformer):
 
 
 def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
+    tracer = execution_context.get_opencensus_tracer()
     try:
-        tree = PARSER.parse(dice_spec)
+        with tracer.span('initial_parse'):
+            tree = PARSER.parse(dice_spec)
     except LarkError as e:
         raise RecognitionError(
             "Sorry, I couldn't understand your request") from e
     logging.debug("Initial parse tree:\n%s", pprint(tree))
     try:
         tree = NumberTransformer().transform(tree)
-        tree = DnD5eKnowledge().transform(tree)
+        with tracer.span('dnd_knowledge'):
+            tree = DnD5eKnowledge().transform(tree)
         tree = SimplifyTransformer().transform(tree)
-        tree = CritTransformer().transform(tree)
+        with tracer.span('crit_transform'):
+            tree = CritTransformer().transform(tree)
         logging.debug("DnD transformed parse tree:\n%s", pprint(tree))
-        transformer = EvalDice()
-        tree = transformer.transform(tree)
+        with tracer.span('final_eval'):
+            transformer = EvalDice()
+            tree = transformer.transform(tree)
         tree = SimplifyTransformer().transform(tree)
     except VisitError as e:
         #  Get our nice exception out of lark's wrapper
