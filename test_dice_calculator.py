@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 from dice_calculator import (
-    roll, describe_dice, DnD5eKnowledge, SimplifyTransformer, CritTransformer,
-    pprint)
+    roll, describe_dice, EvalDice, DnD5eKnowledge, SimplifyTransformer, CritTransformer,
+    UnfulfillableRequestError, pprint)
 
 from absl.testing import absltest
 import unittest
+from unittest import mock
 from lark import Tree, Token
+from lark.exceptions import VisitError
 
 
 class RollTest(absltest.TestCase):
@@ -186,6 +188,57 @@ class DnD5eKnowledgeTest(TransformerTestCase):
         initial_tree = Tree("value", [Token('SPELL_NAME', 'sadfsdf')])
         with self.assertRaises(Exception):
             DnD5eKnowledge().transform(initial_tree)
+
+
+class DiceEvalTest(TransformerTestCase):
+    def test_add(self):
+        initial_tree = Tree("add", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, 5)
+
+    def test_sub(self):
+        initial_tree = Tree("sub", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, -1)
+
+    def test_mul(self):
+        initial_tree = Tree("mul", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, 6)
+
+    def test_max(self):
+        initial_tree = Tree("max", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, 3)
+
+    def test_min(self):
+        initial_tree = Tree("min", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, 2)
+
+    @mock.patch('dice_calculator.randint')
+    def test_roll_n(self, mock_randint):
+        mock_randint.side_effect = range(1, 3)
+        initial_tree = Tree("roll_n", [2, 3])
+        final_tree = EvalDice().transform(initial_tree)
+        self.assertSimpleTreeEqual(final_tree, 3)
+        mock_randint.assert_has_calls([mock.call(1, 3)]*2)
+
+    def test_roll_n_zero_sides(self):
+        initial_tree = Tree("roll_n", [2, 0])
+        with self.assertRaises(UnfulfillableRequestError):
+            try:
+                EvalDice().transform(initial_tree)
+            except VisitError as e:
+                raise e.orig_exc
+
+    def test_roll_n_negative_count(self):
+        initial_tree = Tree("roll_n", [-1, 3])
+        with self.assertRaises(UnfulfillableRequestError):
+            try:
+                EvalDice().transform(initial_tree)
+            except VisitError as e:
+                raise e.orig_exc
 
 
 if __name__ == '__main__':
