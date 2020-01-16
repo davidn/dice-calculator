@@ -57,34 +57,49 @@ class DescribeDiceTest(unittest.TestCase):
         self.assertIn("1, 2, 3 and 4", describe_dice([1, 2, 3, 4]))
 
 
-class CritTransformerTest(unittest.TestCase):
+class TransformerTestCase(absltest.TestCase):
+    def assertTreeEqual(self, a, b):
+        self.assertEqual(
+            a, b,
+            "Trees are not equal\n"
+            "Tree a:\n%s\nTree b:\n%s" % (pprint(a), pprint(b)))
+
+    def assertSimpleTreeEqual(self, a, b):
+        if isinstance(a, Tree):
+            a = SimplifyTransformer().transform(a)
+        if isinstance(b, Tree):
+            b = SimplifyTransformer().transform(b)
+        self.assertTreeEqual(a, b)
+
+
+class CritTransformerTest(TransformerTestCase):
     def test_int(self):
         in_tree = Tree('critical', [
             1
         ])
         out_tree = CritTransformer().transform(in_tree)
-        self.assertEqual(out_tree, 1)
+        self.assertTreeEqual(out_tree, 1)
 
     def test_dice(self):
         in_tree = Tree('critical', [
             Tree('roll_n', [3, 4])
         ])
         out_tree = CritTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('roll_n', [6, 4]))
+        self.assertTreeEqual(out_tree, Tree('roll_n', [6, 4]))
 
     def test_sum_dice(self):
         in_tree = Tree('critical', [
             Tree('add', [Tree('roll_n', [3, 4]), 2])
         ])
         out_tree = CritTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('add', [Tree('roll_n', [6, 4]), 2]))
+        self.assertTreeEqual(out_tree, Tree('add', [Tree('roll_n', [6, 4]), 2]))
 
 
-class SimplifyTransformerTest(unittest.TestCase):
+class SimplifyTransformerTest(TransformerTestCase):
     def test_collapse_value(self):
         in_tree = Tree('value', [1])
         out_tree = SimplifyTransformer().transform(in_tree)
-        self.assertEqual(out_tree, 1)
+        self.assertTreeEqual(out_tree, 1)
 
     def test_combine_roll_one(self):
         in_tree = Tree('add', [
@@ -92,7 +107,7 @@ class SimplifyTransformerTest(unittest.TestCase):
             Tree('roll_one', [6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('roll_n', [2, 6]))
+        self.assertTreeEqual(out_tree, Tree('roll_n', [2, 6]))
 
     def test_combine_roll_one_and_n(self):
         in_tree = Tree('add', [
@@ -100,7 +115,7 @@ class SimplifyTransformerTest(unittest.TestCase):
             Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('roll_n', [3, 6]))
+        self.assertTreeEqual(out_tree, Tree('roll_n', [3, 6]))
 
     def test_combine_roll_n(self):
         in_tree = Tree('add', [
@@ -108,7 +123,7 @@ class SimplifyTransformerTest(unittest.TestCase):
             Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
-        self.assertEqual(out_tree, Tree('roll_n', [5, 6]))
+        self.assertTreeEqual(out_tree, Tree('roll_n', [5, 6]))
 
     def test_no_combine_different(self):
         in_tree = Tree('add', [
@@ -116,25 +131,15 @@ class SimplifyTransformerTest(unittest.TestCase):
             Tree('roll_n', [2, 6]),
         ])
         out_tree = SimplifyTransformer().transform(in_tree)
-        self.assertEqual(out_tree, in_tree)
+        self.assertTreeEqual(out_tree, in_tree)
 
 
-class DnD5eKnowledgeTest(unittest.TestCase):
+class DnD5eKnowledgeTest(TransformerTestCase):
     def setUp(self):
         self.club_tree = Tree("roll_n", [1, 4])
         self.fireball_tree = Tree("roll_n", [8, 6])
         self.fireball_higher_tree = Tree("roll_n", [1, 6])
         self.fireball_level_five_tree = Tree("roll_n", [10, 6])
-
-    def assertSimpleTreeEqual(self, a, b):
-        if isinstance(a, Tree):
-            a = SimplifyTransformer().transform(a)
-        if isinstance(b, Tree):
-            b = SimplifyTransformer().transform(b)
-        self.assertEqual(
-            a, b,
-            "Trees are not equal\n"
-            "Tree a:\n%s\nTree b:\n%s" % (pprint(a), pprint(b)))
 
     def test_dice_weapon(self):
         initial_tree = Tree("value", [Token('WEAPON', 'Club')])
