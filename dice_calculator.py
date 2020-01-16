@@ -28,6 +28,10 @@ class ImpossibleSpellError(UnfulfillableRequestError):
     pass
 
 
+class ImpossibleDiceError(UnfulfillableRequestError):
+    pass
+
+
 NAMED_DICE = {
     "coin": 2,
     "pyramid": 4,
@@ -272,6 +276,12 @@ class EvalDice(Transformer):
 
     def roll_n(self, count, sides):
         sum = 0
+        if count <= 0:
+            raise ImpossibleDiceError(
+                "Sorry, I couldn't roll {count} dice.")
+        if sides <= 0:
+            raise ImpossibleDiceError(
+                "Sorry, I couldn't roll a {sides} sided die.")
         for _ in range(count):
             res = randint(1, sides)
             sum += res
