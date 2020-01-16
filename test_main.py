@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from main import handleRoll
-from dice_calculator import UnfulfillableRequestError
+from exceptions import UnfulfillableRequestError
 
 from absl.testing import absltest
 from dialogflow_v2.types import WebhookRequest, WebhookResponse

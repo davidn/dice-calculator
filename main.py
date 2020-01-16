@@ -8,7 +8,8 @@ from opencensus.common.transports.async_ import AsyncTransport
 from opencensus.trace import tracer, samplers
 import os
 
-from dice_calculator import roll, UnfulfillableRequestError, describe_dice
+from dice_calculator import roll, describe_dice
+from exceptions import UnfulfillableRequestError
 
 if TYPE_CHECKING:
     import flask
@@ -31,14 +32,14 @@ def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
     if IN_CLOUD:
         propagator = google_cloud_format.GoogleCloudFormatPropagator()
         exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
-        sampler=samplers.AlwaysOnSampler()
+        sampler = samplers.AlwaysOnSampler()
     else:
         propagator = trace_context_http_header_format.TraceContextPropagator()
         exporter = print_exporter.PrintExporter(transport=AsyncTransport)
-        sampler=samplers.AlwaysOffSampler()
+        sampler = samplers.AlwaysOffSampler()
     span_context = propagator.from_headers(request.headers)
     return tracer.Tracer(exporter=exporter, sampler=sampler,
-                  propagator=propagator, span_context=span_context)
+                         propagator=propagator, span_context=span_context)
 
 
 def add_fulfillment_messages(

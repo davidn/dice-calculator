@@ -10,17 +10,64 @@ py_library(
     name = "main",
     srcs = ["main.py"],
     srcs_version = "PY3",
-    data = ["data"],
     deps = [
-	":dice_calculator",
+	    ":dice_calculator",
+	    ":exceptions",
         requirement("dialogflow"),
-        requirement("absl-py")
+        requirement("absl-py"),
+        requirement("opencensus"),
+        requirement("opencensus-ext-stackdriver")
     ],
 )
 
 py_library(
     name = "dice_calculator",
     srcs = ["dice_calculator.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":parser",
+        ":util",
+        ":exceptions",
+        ":transformers",
+        requirement("absl-py"),
+        requirement("lark-parser"),
+        requirement("opencensus")
+    ],
+)
+
+py_library(
+    name = "transformers",
+    srcs = ["transformers.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":parser",
+        ":util",
+        ":exceptions",
+        requirement("absl-py"),
+        requirement("lark-parser"),
+        requirement("opencensus")
+    ],
+)
+
+py_library(
+    name = "exceptions",
+    srcs = ["exceptions.py"],
+    srcs_version = "PY3",
+)
+
+py_library(
+    name = "parser",
+    srcs = ["parser.py"],
+    srcs_version = "PY3",
+    data = ["data"],
+    deps = [
+        requirement("lark-parser")
+    ],
+)
+
+py_library(
+    name = "util",
+    srcs = ["util.py"],
     srcs_version = "PY3",
     data = ["data"],
     deps = [
@@ -46,6 +93,14 @@ py_test(
     srcs_version = "PY3",
     python_version = "PY3",
     deps = [":dice_calculator"]
+)
+
+py_test(
+    name = "test_transformers",
+    srcs = ["test_transformers.py"],
+    srcs_version = "PY3",
+    python_version = "PY3",
+    deps = [":transformers"]
 )
 
 py_test(
