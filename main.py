@@ -60,11 +60,12 @@ if "LOG_LEVEL" in os.environ:
 def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
     if TRACE_PROPAGATE == "google":
         propagator = google_cloud_format.GoogleCloudFormatPropagator()
+    else:
+        propagator = trace_context_http_header_format.TraceContextPropagator()
     if STACKDRIVER_TRACE:
         exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
         sampler = samplers.AlwaysOnSampler()
     else:
-        propagator = trace_context_http_header_format.TraceContextPropagator()
         exporter = print_exporter.PrintExporter(transport=AsyncTransport)
         sampler = samplers.AlwaysOffSampler()
     span_context = propagator.from_headers(request.headers)
