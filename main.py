@@ -56,7 +56,7 @@ elif LOG_HANDLER == 'structured':
                 }
             }
             if context.span_id:
-                structured["logging.googleapis.com/span_id"] = context.span_id
+                structured["logging.googleapis.com/spanId"] = context.span_id
             return json.dumps(structured)
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
