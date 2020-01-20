@@ -13,8 +13,10 @@ import google.cloud.logging.handlers
 from google.protobuf import json_format
 from typing import Sequence, Optional, TYPE_CHECKING
 from opencensus.common.transports.async_ import AsyncTransport
-from opencensus.trace import tracer, samplers, execution_context, print_exporter
-from opencensus.trace.propagation import google_cloud_format, trace_context_http_header_format
+from opencensus.trace import (
+    tracer, samplers, execution_context, print_exporter, logging_exporter)
+from opencensus.trace.propagation import (
+    google_cloud_format, trace_context_http_header_format)
 from opencensus.ext.stackdriver import trace_exporter
 
 from dice_calculator import roll, describe_dice
@@ -25,7 +27,7 @@ if TYPE_CHECKING:
 
 
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
-STACKDRIVER_TRACE = os.environ.get("STACKDRIVER_TRACE", "").lower() in (1, 'true', 't')
+TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
@@ -40,15 +42,21 @@ elif LOG_HANDLER == "stackdriver":
 elif LOG_HANDLER == 'structured':
     class StructureLogFormater(py_logging.Formatter):
         def format(self, record):
+            context = execution_context.get_opencensus_tracer().span_context
             structured = {
                 "message": super().format(record),
                 "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
-                "thread": record.thread,
                 "severity": record.levelname,
                 "logging.googleapis.com/trace": "projects/%s/traces/%s" % (
-                    PROJECT_ID,
-                    execution_context.get_opencensus_tracer().span_context.trace_id)
+                    PROJECT_ID, context.trace_id),
+                "logging.googleapis.com/sourceLocation": {
+                    "file": record.filename,
+                    "line": record.lineno,
+                    "function": record.funcName
+                }
             }
+            if context.span_id:
+                structured["logging.googleapis.com/span_id"] = context.span_id
             return json.dumps(structured)
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
@@ -62,8 +70,15 @@ def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
         propagator = google_cloud_format.GoogleCloudFormatPropagator()
     else:
         propagator = trace_context_http_header_format.TraceContextPropagator()
-    if STACKDRIVER_TRACE:
+    if TRACE_EXPORTER == "stackdriver":
         exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
+        sampler = samplers.AlwaysOnSampler()
+    elif TRACE_EXPORTER == "log":
+        exporter = logging_exporter.LoggingExporter(
+            handler=py_logging.NullHandler(), transport=AsyncTransport)
+        sampler = samplers.AlwaysOnSampler()
+    elif TRACE_EXPORTER == "stdout":
+        exporter = print_exporter.PrintExporter(transport=AsyncTransport)
         sampler = samplers.AlwaysOnSampler()
     else:
         exporter = print_exporter.PrintExporter(transport=AsyncTransport)
