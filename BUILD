@@ -1,6 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
 load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_protobuf//python:defs.bzl", "py_proto_library")
 load("@requirements//:requirements.bzl", "requirement")
 load("@requirements_test//:requirements.bzl", test_requirement="requirement")
 # bazel's pip implementation doesn't currently install transtive requirements
@@ -121,6 +122,15 @@ py_test(
         ":main",
         test_requirement("pytype")
     ] + transitive_requirement,
+)
+
+py_proto_library(
+  name = "dice_calculator_pb2",
+  protos = ["dice_calculator.proto"],
+  with_grpc = True,
+  deps = [
+      "@googleapis//google/cloud/dialogflow/v2:dialogflow_proto"
+  ]
 )
 
 filegroup(

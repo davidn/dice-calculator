@@ -6,7 +6,9 @@ from flask import Flask, request
 from main import handleHttp
 
 app = Flask(__name__)
-@app.route('/', methods=["POST"])
+@app.route('/v1', methods=["POST"])
+@app.route('/', methods=["POST"])  # alias for the lazy
+@app.route('/roll', methods=["POST"])  # compatibility with cloud func
 def entry():
     return handleHttp(request)
 

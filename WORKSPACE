@@ -41,3 +41,12 @@ pip3_import(
 )
 load("@requirements_transitive//:requirements.bzl", pip_install_transitive="pip_install")
 pip_install_transitive()
+
+git_repository(
+    name = "googleapis",
+    remote = "https://github.com/googleapis/googleapis.git",
+    branch = "master",
+)
+
+load("@org_pubref_rules_protobuf//python:rules.bzl", "py_proto_repositories")
+py_proto_repositories()
