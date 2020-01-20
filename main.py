@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 
+import os
+import json
+import logging as py_logging
+from datetime import datetime, timezone
+
 from absl import logging
 from dialogflow_v2.types import WebhookRequest, WebhookResponse, Intent
+from google.cloud import error_reporting
+import google.cloud.logging
+import google.cloud.logging.handlers
 from google.protobuf import json_format
 from typing import Sequence, Optional, TYPE_CHECKING
 from opencensus.common.transports.async_ import AsyncTransport
-from opencensus.trace import tracer, samplers
-import os
+from opencensus.trace import tracer, samplers, execution_context, print_exporter
+from opencensus.trace.propagation import google_cloud_format, trace_context_http_header_format
+from opencensus.ext.stackdriver import trace_exporter
 
 from dice_calculator import roll, describe_dice
 from exceptions import UnfulfillableRequestError
@@ -14,23 +23,44 @@ from exceptions import UnfulfillableRequestError
 if TYPE_CHECKING:
     import flask
 
-IN_CLOUD = "GCP_PROJECT" in os.environ
 
-if IN_CLOUD:
-    from google.cloud import error_reporting
-    from opencensus.ext.stackdriver import trace_exporter
-    from opencensus.trace.propagation import google_cloud_format
-else:
-    from opencensus.trace.propagation import trace_context_http_header_format
-    from opencensus.trace import print_exporter
+STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
+STACKDRIVER_TRACE = os.environ.get("STACKDRIVER_TRACE", "").lower() in (1, 'true', 't')
+TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
+LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
+PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
+
+if LOG_HANDLER == 'absl':
+    logging.use_absl_handler()
+elif LOG_HANDLER == "stackdriver":
+    client = google.cloud.logging.Client()
+    handler = google.cloud.logging.handlers.CloudLoggingHandler(client)
+    google.cloud.logging.handlers.setup_logging(handler)
+elif LOG_HANDLER == 'structured':
+    class StructureLogFormater(py_logging.Formatter):
+        def format(self, record):
+            structured = {
+                "message": super().format(record),
+                "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
+                "thread": record.thread,
+                "severity": record.levelname,
+                "logging.googleapis.com/trace": "projects/%s/traces/%s" % (
+                    PROJECT_ID,
+                    execution_context.get_opencensus_tracer().span_context.trace_id)
+            }
+            return json.dumps(structured)
+    handler = py_logging.StreamHandler()
+    handler.setFormatter(StructureLogFormater())
+    py_logging.getLogger().addHandler(handler)
 if "LOG_LEVEL" in os.environ:
     logging.set_verbosity(os.environ["LOG_LEVEL"])
 
 
 def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
-    if IN_CLOUD:
+    if TRACE_PROPAGATE == "google":
         propagator = google_cloud_format.GoogleCloudFormatPropagator()
+    if STACKDRIVER_TRACE:
         exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
         sampler = samplers.AlwaysOnSampler()
     else:
@@ -91,7 +121,7 @@ def handleHttp(request: 'flask.Request') -> str:
                 handleRoll(req, res)
     except UnfulfillableRequestError as e:
         logging.exception(e)
-        if IN_CLOUD:
+        if STACKDRIVER_ERROR_REPORTING:
             try:
                 client = error_reporting.Client()
                 client.report_exception(
