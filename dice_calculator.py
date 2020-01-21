@@ -6,7 +6,7 @@ import sys
 from typing import Sequence, Tuple
 from opencensus.trace import execution_context
 
-from parser import PARSER
+from parser import get_parser
 from util import pprint
 from exceptions import RecognitionError
 from transformers import (
@@ -19,7 +19,7 @@ def roll(dice_spec: str) -> Tuple[int, Sequence[int]]:
     try:
         with tracer.span('initial_parse'):
             tracer.add_attribute_to_current_span("dice_spec", dice_spec)
-            tree = PARSER.parse(dice_spec)
+            tree = get_parser().parse(dice_spec)
     except LarkError as e:
         raise RecognitionError(
             "Sorry, I couldn't understand your request") from e

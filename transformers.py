@@ -8,7 +8,7 @@ from typing import Iterable, Mapping, Any
 from copy import deepcopy
 from opencensus.trace import execution_context
 
-from parser import PARSER, SPELLS, WEAPONS, NAMED_DICE
+from parser import get_parser, SPELLS, WEAPONS, NAMED_DICE
 from util import pprint
 from exceptions import (ImpossibleSpellError, RecognitionError,
                         ImpossibleDiceError)
@@ -68,7 +68,7 @@ class DnD5eKnowledge(Transformer):
         with tracer.span('parse_weapon'):
             tracer.add_attribute_to_current_span("name", name)
             tracer.add_attribute_to_current_span("dice_spec", dice_spec)
-            tree = PARSER.parse(dice_spec, start="sum")
+            tree = get_parser().parse(dice_spec, start="sum")
         logging.debug("weapon %s has damage dice %s parsed as:\n%s",
                       name, dice_spec, pprint(tree))
         return tree
@@ -88,7 +88,7 @@ class DnD5eKnowledge(Transformer):
         with tracer.span('parse_spell_additional'):
             tracer.add_attribute_to_current_span("name", spell["name"])
             tracer.add_attribute_to_current_span("dice_spec", m.group(0))
-            higher_level_tree = PARSER.parse(m.group(0), start="sum")
+            higher_level_tree = get_parser().parse(m.group(0), start="sum")
         logging.debug(
             "spell %s has damage dice %s per extra level parsed as:\n%s",
             spell["name"], m.group(0), pprint(higher_level_tree))
@@ -111,7 +111,7 @@ class DnD5eKnowledge(Transformer):
         with tracer.span('parse_spell'):
             tracer.add_attribute_to_current_span("name", spell["name"])
             tracer.add_attribute_to_current_span("dice_spec", m.group(0))
-            tree = PARSER.parse(m.group(0), start="sum")
+            tree = get_parser().parse(m.group(0), start="sum")
         logging.debug("spell %s has base damage dice %s parsed as:\n%s",
                       spell["name"], m.group(0), pprint(tree))
         return tree

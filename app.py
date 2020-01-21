@@ -4,6 +4,7 @@ import os
 
 from flask import Flask, request, send_from_directory
 from main import handleHttp
+from parser import initialize_parser
 
 app = Flask(__name__)
 @app.route('/v1', methods=["POST"])
@@ -24,4 +25,5 @@ def dialogflow_openapi():
 
 
 if __name__ == "__main__":
+    initialize_parser()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

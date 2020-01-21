@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 import json
-from lark import Lark
 import sys
+import time
 from typing import Iterable
+
+from absl import logging
+from lark import Lark
 
 # Lark has recursion issues
 if sys.getrecursionlimit() < 5000:
@@ -96,4 +99,18 @@ GRAMMER += list_to_lark_literal("NAMED_DICE", NAMED_DICE.keys())
 GRAMMER += list_to_lark_literal("WEAPON", (w["name"] for w in WEAPONS))
 GRAMMER += list_to_lark_literal("SPELL_NAME", (s["name"] for s in SPELLS))
 
-PARSER = Lark(GRAMMER)
+_PARSER = None
+
+
+def initialize_parser():
+    global _PARSER
+    start = time.process_time()
+    _PARSER = Lark(GRAMMER)
+    end = time.process_time()
+    logging.info("compiling grammer took %f seconds", end-start)
+
+
+def get_parser() -> Lark:
+    if _PARSER is None:
+        initialize_parser()
+    return _PARSER
