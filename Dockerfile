@@ -10,6 +10,7 @@ RUN mkdir imports \
  && pip install -r requirements.txt -t imports \
  && cd imports \
  && mv grpc .. \
+ && mv lark .. \
  && zip -r ../imports.zip * \
  && cd .. \
  && rm -rf imports \
