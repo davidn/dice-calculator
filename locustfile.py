@@ -5,12 +5,12 @@ import os
 from locust import HttpLocust, TaskSet, constant, task
 
 
-PATH = os.env('PATH','/')
+URL_PATH = os.env('URL_PATH','/v1')
 
 
 class Dice(TaskSet):
     def roll(self, dice_spec):
-        self.locust.client.post(PATH, json={
+        self.locust.client.post(URL_PATH, json={
             "queryResult": {
                 "action": "roll",
                 "queryText": f"Roll {dice_spec}",
